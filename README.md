@@ -1,3 +1,6 @@
+# Happy-Paws
+MIS 330
+
 # Happy Paws Training - Frontend
 
 A modern Next.js frontend for Happy Paws Training, a pet class scheduling and booking system.
@@ -69,4 +72,3 @@ lib/
 - All database operations are handled by your external backend API
 - Authentication uses localStorage for demo purposes (use proper auth in production)
 - The frontend is fully functional and ready to connect to your backend API
-

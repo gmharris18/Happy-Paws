@@ -1,0 +1,1066 @@
+// ============================================================================
+// TRAINER PORTAL - Complete Application Object
+// ============================================================================
+const trainerPortal = {
+    // Current trainer ID (retrieved from localStorage or session)
+    trainerId: null,
+    
+    // Trainer profile data
+    trainerData: null,
+    
+    // Currently editing class ID (null when creating new)
+    editingClassId: null,
+    
+    // Currently viewing bookings for this class ID
+    viewingBookingsForClassId: null,
+    
+    // Array to store all classes
+    classes: [],
+    
+    // Filtered and sorted classes for display
+    displayedClasses: [],
+    
+    // All bookings data
+    bookings: [],
+    
+    // Current search term
+    searchTerm: '',
+    
+    // Current filter value
+    currentFilter: 'all',
+    
+    // Current sort option
+    currentSort: 'newest',
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+    /**
+     * Initialize the portal when page loads
+     */
+    async init() {
+        // Get trainer ID from localStorage (set during login)
+        this.trainerId = localStorage.getItem('trainerId') || localStorage.getItem('hpt_trainer_id');
+        
+        // Check if trainer is logged in
+        if (!this.trainerId) {
+            alert('You must be logged in as a trainer to access this page.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Load trainer profile data
+        await this.loadTrainerData();
+        
+        // Load trainer's classes
+        await this.loadClasses();
+        
+        // Load all bookings
+        await this.loadBookings();
+        
+        // Initialize UI
+        this.updateProfileDisplay();
+        this.renderClasses();
+    },
+
+    // ============================================================================
+    // TRAINER DATA LOADING
+    // ============================================================================
+    /**
+     * Load trainer profile information
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * Example API call:
+     * async loadTrainerData() {
+     *     try {
+     *         const response = await fetch(`https://api.yourdomain.com/api/trainers/${this.trainerId}`, {
+     *             method: 'GET',
+     *             headers: {
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             }
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             throw new Error('Failed to load trainer data');
+     *         }
+     * 
+     *         const data = await response.json();
+     *         this.trainerData = data;
+     *         this.updateProfileDisplay();
+     *     } catch (error) {
+     *         console.error('Error loading trainer data:', error);
+     *         this.showError('Failed to load trainer profile');
+     *     }
+     * }
+     */
+    async loadTrainerData() {
+        try {
+            // PLACEHOLDER: Load from localStorage for demo
+            // TODO: Replace with actual API call
+            const trainerEmail = localStorage.getItem('trainerEmail') || 'trainer@example.com';
+            const trainerName = localStorage.getItem('trainerName') || 'Trainer';
+            
+            this.trainerData = {
+                id: this.trainerId,
+                name: trainerName,
+                email: trainerEmail,
+                firstName: trainerName.split(' ')[0] || 'Trainer',
+                lastName: trainerName.split(' ').slice(1).join(' ') || ''
+            };
+        } catch (error) {
+            console.error('Error loading trainer data:', error);
+            this.trainerData = {
+                id: this.trainerId,
+                name: 'Trainer',
+                email: 'trainer@example.com'
+            };
+        }
+    },
+
+    /**
+     * Update profile display in the sidebar
+     */
+    updateProfileDisplay() {
+        if (!this.trainerData) return;
+
+        // Update avatar with first letter of name
+        const avatar = document.getElementById('profileAvatar');
+        if (avatar) {
+            avatar.textContent = this.trainerData.firstName?.[0]?.toUpperCase() || 'T';
+        }
+
+        // Update name and email
+        const nameEl = document.getElementById('profileName');
+        const emailEl = document.getElementById('profileEmail');
+        if (nameEl) nameEl.textContent = this.trainerData.name || 'Trainer';
+        if (emailEl) emailEl.textContent = this.trainerData.email || '';
+
+        // Update stats
+        this.updateStats();
+    },
+
+    /**
+     * Update statistics in profile section
+     */
+    updateStats() {
+        const totalClasses = this.classes.length;
+        const totalBookings = this.bookings.length;
+
+        const classesEl = document.getElementById('totalClasses');
+        const bookingsEl = document.getElementById('totalBookings');
+        
+        if (classesEl) classesEl.textContent = totalClasses;
+        if (bookingsEl) bookingsEl.textContent = totalBookings;
+    },
+
+    // ============================================================================
+    // CLASS LOADING
+    // ============================================================================
+    /**
+     * Load all classes for the current trainer
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * Example API call:
+     * async loadClasses() {
+     *     try {
+     *         const response = await fetch(`https://api.yourdomain.com/api/classes?trainerId=${this.trainerId}`, {
+     *             method: 'GET',
+     *             headers: {
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             }
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             throw new Error('Failed to load classes');
+     *         }
+     * 
+     *         const data = await response.json();
+     *         this.classes = data;
+     *         this.applyFiltersAndSort();
+     *         this.renderClasses();
+     *     } catch (error) {
+     *         console.error('Error loading classes:', error);
+     *         this.showError('Failed to load classes. Please refresh the page.');
+     *     }
+     * }
+     * 
+     * Example MySQL Query:
+     * SELECT ClassID, Title, Description, StartDateTime, EndDateTime, Location, Capacity, Status
+     * FROM Classes
+     * WHERE TrainerID = ?
+     * ORDER BY StartDateTime DESC
+     */
+    async loadClasses() {
+        try {
+            // PLACEHOLDER: Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // PLACEHOLDER: Load from localStorage for demo purposes
+            // TODO: Replace with actual API call to your backend
+            const storedClasses = localStorage.getItem(`trainer_${this.trainerId}_classes`);
+            this.classes = storedClasses ? JSON.parse(storedClasses) : [];
+
+            // If no classes in storage, initialize with empty array
+            if (!this.classes) {
+                this.classes = [];
+            }
+
+            // Apply filters and sorting
+            this.applyFiltersAndSort();
+        } catch (error) {
+            console.error('Error loading classes:', error);
+            this.showError('Failed to load classes. Please refresh the page.');
+        }
+    },
+
+    // ============================================================================
+    // BOOKINGS LOADING
+    // ============================================================================
+    /**
+     * Load all bookings for trainer's classes
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * Example API call:
+     * async loadBookings() {
+     *     try {
+     *         const response = await fetch(`https://api.yourdomain.com/api/bookings?trainerId=${this.trainerId}`, {
+     *             method: 'GET',
+     *             headers: {
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             }
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             throw new Error('Failed to load bookings');
+     *         }
+     * 
+     *         const data = await response.json();
+     *         this.bookings = data;
+     *         this.updateStats();
+     *     } catch (error) {
+     *         console.error('Error loading bookings:', error);
+     *     }
+     * }
+     * 
+     * Example MySQL Query:
+     * SELECT b.BookingID, b.CustomerID, b.PetID, b.Status, b.BookingDateTime,
+     *        c.FirstName, c.LastName, p.Name AS PetName, cl.ClassID, cl.Title AS ClassName
+     * FROM Bookings b
+     * JOIN Classes cl ON b.ClassID = cl.ClassID
+     * JOIN Customers c ON b.CustomerID = c.CustomerID
+     * JOIN Pets p ON b.PetID = p.PetID
+     * WHERE cl.TrainerID = ?
+     * ORDER BY b.BookingDateTime DESC
+     */
+    async loadBookings() {
+        try {
+            // PLACEHOLDER: Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // PLACEHOLDER: Load from localStorage for demo
+            // TODO: Replace with actual API call
+            const storedBookings = localStorage.getItem(`trainer_${this.trainerId}_bookings`);
+            this.bookings = storedBookings ? JSON.parse(storedBookings) : [];
+
+            if (!this.bookings) {
+                this.bookings = [];
+            }
+
+            this.updateStats();
+        } catch (error) {
+            console.error('Error loading bookings:', error);
+        }
+    },
+
+    /**
+     * Load bookings for a specific class
+     * @param {number} classId - ID of the class
+     */
+    async loadClassBookings(classId) {
+        this.viewingBookingsForClassId = classId;
+        
+        // Filter bookings for this class
+        const classBookings = this.bookings.filter(b => b.classId === classId);
+        
+        this.renderBookings(classBookings);
+    },
+
+    // ============================================================================
+    // SEARCH, FILTER, AND SORT
+    // ============================================================================
+    /**
+     * Handle search input
+     */
+    handleSearch() {
+        const searchInput = document.getElementById('searchInput');
+        this.searchTerm = searchInput.value.toLowerCase().trim();
+        this.applyFiltersAndSort();
+        this.renderClasses();
+    },
+
+    /**
+     * Handle filter change
+     */
+    handleFilter() {
+        const filterSelect = document.getElementById('dateFilter');
+        this.currentFilter = filterSelect.value;
+        this.applyFiltersAndSort();
+        this.renderClasses();
+    },
+
+    /**
+     * Handle sort change
+     */
+    handleSort() {
+        const sortSelect = document.getElementById('sortSelect');
+        this.currentSort = sortSelect.value;
+        this.applyFiltersAndSort();
+        this.renderClasses();
+    },
+
+    /**
+     * Apply search, filter, and sort to classes
+     */
+    applyFiltersAndSort() {
+        let filtered = [...this.classes];
+
+        // Apply search filter
+        if (this.searchTerm) {
+            filtered = filtered.filter(classItem => {
+                const name = (classItem.name || '').toLowerCase();
+                const description = (classItem.description || '').toLowerCase();
+                return name.includes(this.searchTerm) || description.includes(this.searchTerm);
+            });
+        }
+
+        // Apply date filter
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        filtered = filtered.filter(classItem => {
+            const classDate = new Date(`${classItem.date}T${classItem.time}`);
+            
+            switch (this.currentFilter) {
+                case 'today':
+                    return classDate.toDateString() === today.toDateString();
+                case 'week':
+                    return classDate >= today && classDate <= weekFromNow;
+                case 'month':
+                    return classDate >= today && classDate <= monthFromNow;
+                case 'upcoming':
+                    return classDate >= today;
+                case 'past':
+                    return classDate < today;
+                default:
+                    return true;
+            }
+        });
+
+        // Apply sorting
+        filtered.sort((a, b) => {
+            switch (this.currentSort) {
+                case 'newest':
+                    const dateA = new Date(`${a.date}T${a.time}`);
+                    const dateB = new Date(`${b.date}T${b.time}`);
+                    return dateB - dateA;
+                case 'oldest':
+                    const dateA2 = new Date(`${a.date}T${a.time}`);
+                    const dateB2 = new Date(`${b.date}T${b.time}`);
+                    return dateA2 - dateB2;
+                case 'name-asc':
+                    return (a.name || '').localeCompare(b.name || '');
+                case 'name-desc':
+                    return (b.name || '').localeCompare(a.name || '');
+                case 'date-asc':
+                    const dateA3 = new Date(`${a.date}T${a.time}`);
+                    const dateB3 = new Date(`${b.date}T${b.time}`);
+                    return dateA3 - dateB3;
+                case 'date-desc':
+                    const dateA4 = new Date(`${a.date}T${a.time}`);
+                    const dateB4 = new Date(`${b.date}T${b.time}`);
+                    return dateB4 - dateA4;
+                default:
+                    return 0;
+            }
+        });
+
+        this.displayedClasses = filtered;
+    },
+
+    // ============================================================================
+    // CLASS RENDERING
+    // ============================================================================
+    /**
+     * Render all classes in the table
+     */
+    renderClasses() {
+        const container = document.getElementById('classesContainer');
+
+        if (this.displayedClasses.length === 0) {
+            const emptyMessage = this.classes.length === 0
+                ? 'No classes yet. Create your first class to get started!'
+                : 'No classes match your search or filter criteria.';
+            
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📚</div>
+                    <div class="empty-state-text">${emptyMessage}</div>
+                </div>
+            `;
+            return;
+        }
+
+        // Build table HTML
+        let tableHTML = `
+            <table class="classes-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="trainerPortal.sortByColumn('name')">Class Name</th>
+                        <th>Description</th>
+                        <th class="sortable" onclick="trainerPortal.sortByColumn('date')">Date & Time</th>
+                        <th>Location</th>
+                        <th>Capacity</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        this.displayedClasses.forEach((classItem) => {
+            const classDate = new Date(`${classItem.date}T${classItem.time}`);
+            const formattedDate = classDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            const formattedTime = classDate.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+
+            // Calculate booked count
+            const bookedCount = this.bookings.filter(b => b.classId === classItem.id).length;
+            const isFull = bookedCount >= classItem.capacity;
+            const statusBadge = isFull 
+                ? '<span class="badge badge-full">Full</span>'
+                : `<span class="badge badge-available">${classItem.capacity - bookedCount} Available</span>`;
+
+            tableHTML += `
+                <tr>
+                    <td class="class-name">${this.escapeHtml(classItem.name)}</td>
+                    <td class="class-description" title="${this.escapeHtml(classItem.description || '')}">
+                        ${this.escapeHtml(classItem.description || 'No description')}
+                    </td>
+                    <td>
+                        <div>${formattedDate}</div>
+                        <div style="font-size: 12px; color: #64748b;">${formattedTime}</div>
+                    </td>
+                    <td>${this.escapeHtml(classItem.location)}</td>
+                    <td>${bookedCount} / ${classItem.capacity}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-view-bookings" onclick="trainerPortal.loadClassBookings(${classItem.id})">
+                                Bookings
+                            </button>
+                            <button class="btn-edit" onclick="trainerPortal.editClass(${classItem.id})">
+                                Edit
+                            </button>
+                            <button class="btn-delete" onclick="trainerPortal.deleteClass(${classItem.id})">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHTML;
+    },
+
+    /**
+     * Sort by column header click
+     * @param {string} column - Column to sort by
+     */
+    sortByColumn(column) {
+        const sortMap = {
+            'name': this.currentSort === 'name-asc' ? 'name-desc' : 'name-asc',
+            'date': this.currentSort === 'date-asc' ? 'date-desc' : 'date-asc'
+        };
+
+        if (sortMap[column]) {
+            this.currentSort = sortMap[column];
+            document.getElementById('sortSelect').value = this.currentSort;
+            this.applyFiltersAndSort();
+            this.renderClasses();
+        }
+    },
+
+    // ============================================================================
+    // BOOKINGS RENDERING
+    // ============================================================================
+    /**
+     * Render bookings for a specific class
+     * @param {Array} classBookings - Array of booking objects
+     */
+    renderBookings(classBookings) {
+        const bookingsList = document.getElementById('bookingsList');
+        bookingsList.classList.add('show');
+
+        if (classBookings.length === 0) {
+            bookingsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">No bookings for this class yet</div>
+                </div>
+            `;
+            return;
+        }
+
+        // Get class name
+        const classItem = this.classes.find(c => c.id === this.viewingBookingsForClassId);
+        const className = classItem ? classItem.name : 'Unknown Class';
+
+        let bookingsHTML = `
+            <div style="margin-bottom: 16px;">
+                <strong>Bookings for: ${this.escapeHtml(className)}</strong>
+                <button class="btn-secondary" onclick="trainerPortal.hideBookings()" style="margin-left: 12px; padding: 6px 12px; font-size: 12px;">Close</button>
+            </div>
+            <table class="bookings-table">
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Pet Name</th>
+                        <th>Booking Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        classBookings.forEach(booking => {
+            const bookingDate = new Date(booking.bookingDateTime || booking.createdAt);
+            const formattedDate = bookingDate.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+
+            const statusBadge = booking.status === 'Booked' 
+                ? '<span class="badge badge-available">Booked</span>'
+                : booking.status === 'Cancelled'
+                ? '<span class="badge badge-full">Cancelled</span>'
+                : '<span class="badge">Completed</span>';
+
+            bookingsHTML += `
+                <tr>
+                    <td>${this.escapeHtml(booking.customerName || 'Unknown')}</td>
+                    <td>${this.escapeHtml(booking.petName || 'Unknown')}</td>
+                    <td>${formattedDate}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        });
+
+        bookingsHTML += `
+                </tbody>
+            </table>
+        `;
+
+        bookingsList.innerHTML = bookingsHTML;
+    },
+
+    /**
+     * Hide bookings section
+     */
+    hideBookings() {
+        const bookingsList = document.getElementById('bookingsList');
+        bookingsList.classList.remove('show');
+        this.viewingBookingsForClassId = null;
+    },
+
+    // ============================================================================
+    // MODAL MANAGEMENT
+    // ============================================================================
+    /**
+     * Open modal for creating a new class
+     */
+    openCreateModal() {
+        this.editingClassId = null;
+        document.getElementById('modalTitle').textContent = 'Create New Class';
+        document.getElementById('submitButton').textContent = 'Create Class';
+        document.getElementById('classForm').reset();
+        this.clearAllErrors();
+        
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('classDate').value = '';
+        document.getElementById('classDate').setAttribute('min', today);
+        
+        document.getElementById('classModal').classList.add('show');
+    },
+
+    /**
+     * Open modal for editing an existing class
+     * @param {number} classId - ID of the class to edit
+     */
+    editClass(classId) {
+        const classItem = this.classes.find(c => c.id === classId);
+        
+        if (!classItem) {
+            this.showError('Class not found');
+            return;
+        }
+
+        this.editingClassId = classId;
+        document.getElementById('modalTitle').textContent = 'Edit Class';
+        document.getElementById('submitButton').textContent = 'Update Class';
+
+        // Populate form with class data
+        document.getElementById('className').value = classItem.name;
+        document.getElementById('classDescription').value = classItem.description || '';
+        document.getElementById('classDate').value = classItem.date;
+        document.getElementById('classTime').value = classItem.time;
+        document.getElementById('classLocation').value = classItem.location;
+        document.getElementById('classCapacity').value = classItem.capacity;
+
+        this.clearAllErrors();
+        document.getElementById('classModal').classList.add('show');
+    },
+
+    /**
+     * Close the modal
+     */
+    closeModal() {
+        document.getElementById('classModal').classList.remove('show');
+        this.editingClassId = null;
+        document.getElementById('classForm').reset();
+        this.clearAllErrors();
+    },
+
+    // ============================================================================
+    // FORM VALIDATION
+    // ============================================================================
+    /**
+     * Validate the class form
+     * @returns {boolean} - True if form is valid
+     */
+    validateForm() {
+        let isValid = true;
+        this.clearAllErrors();
+
+        const className = document.getElementById('className').value.trim();
+        const classDate = document.getElementById('classDate').value;
+        const classTime = document.getElementById('classTime').value;
+        const classLocation = document.getElementById('classLocation').value.trim();
+        const classCapacity = parseInt(document.getElementById('classCapacity').value);
+
+        // Validate class name
+        if (!className) {
+            this.showFieldError('classNameError', 'Class name is required');
+            document.getElementById('className').classList.add('error');
+            isValid = false;
+        } else if (className.length < 3) {
+            this.showFieldError('classNameError', 'Class name must be at least 3 characters');
+            document.getElementById('className').classList.add('error');
+            isValid = false;
+        }
+
+        // Validate date
+        if (!classDate) {
+            this.showFieldError('classDateError', 'Date is required');
+            document.getElementById('classDate').classList.add('error');
+            isValid = false;
+        } else {
+            const selectedDate = new Date(classDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < today) {
+                this.showFieldError('classDateError', 'Date cannot be in the past');
+                document.getElementById('classDate').classList.add('error');
+                isValid = false;
+            }
+        }
+
+        // Validate time
+        if (!classTime) {
+            this.showFieldError('classTimeError', 'Time is required');
+            document.getElementById('classTime').classList.add('error');
+            isValid = false;
+        }
+
+        // Validate location
+        if (!classLocation) {
+            this.showFieldError('classLocationError', 'Location is required');
+            document.getElementById('classLocation').classList.add('error');
+            isValid = false;
+        }
+
+        // Validate capacity
+        if (!classCapacity || classCapacity < 1) {
+            this.showFieldError('classCapacityError', 'Capacity must be at least 1');
+            document.getElementById('classCapacity').classList.add('error');
+            isValid = false;
+        } else if (classCapacity > 100) {
+            this.showFieldError('classCapacityError', 'Capacity cannot exceed 100');
+            document.getElementById('classCapacity').classList.add('error');
+            isValid = false;
+        }
+
+        return isValid;
+    },
+
+    /**
+     * Show error message for a specific field
+     * @param {string} errorId - ID of the error element
+     * @param {string} message - Error message to display
+     */
+    showFieldError(errorId, message) {
+        const errorElement = document.getElementById(errorId);
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.classList.add('show');
+        }
+    },
+
+    /**
+     * Clear all error messages
+     */
+    clearAllErrors() {
+        const errorElements = document.querySelectorAll('.error-message');
+        errorElements.forEach(el => {
+            el.textContent = '';
+            el.classList.remove('show');
+        });
+
+        const inputElements = document.querySelectorAll('.form-input, .form-textarea, .form-select');
+        inputElements.forEach(el => el.classList.remove('error'));
+    },
+
+    // ============================================================================
+    // FORM SUBMISSION
+    // ============================================================================
+    /**
+     * Handle form submission (create or update class)
+     * @param {Event} event - Form submit event
+     */
+    async handleSubmit(event) {
+        event.preventDefault();
+
+        // Validate form
+        if (!this.validateForm()) {
+            return;
+        }
+
+        // Get form data
+        const formData = {
+            name: document.getElementById('className').value.trim(),
+            description: document.getElementById('classDescription').value.trim(),
+            date: document.getElementById('classDate').value,
+            time: document.getElementById('classTime').value,
+            location: document.getElementById('classLocation').value.trim(),
+            capacity: parseInt(document.getElementById('classCapacity').value),
+            trainerId: this.trainerId
+        };
+
+        // Disable submit button
+        const submitButton = document.getElementById('submitButton');
+        submitButton.disabled = true;
+        submitButton.textContent = this.editingClassId ? 'Updating...' : 'Creating...';
+
+        try {
+            if (this.editingClassId) {
+                // Update existing class
+                await this.updateClass(this.editingClassId, formData);
+            } else {
+                // Create new class
+                await this.createClass(formData);
+            }
+
+            // Close modal and refresh
+            this.closeModal();
+            await this.loadClasses();
+            await this.loadBookings();
+            this.renderClasses();
+            this.updateStats();
+        } catch (error) {
+            console.error('Error saving class:', error);
+            this.showError(error.message || 'Failed to save class. Please try again.');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = this.editingClassId ? 'Update Class' : 'Create Class';
+        }
+    },
+
+    // ============================================================================
+    // CLASS CRUD OPERATIONS
+    // ============================================================================
+    /**
+     * Create a new class
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * @param {Object} classData - Class data to create
+     * 
+     * Example API call:
+     * async createClass(classData) {
+     *     try {
+     *         const response = await fetch('https://api.yourdomain.com/api/classes', {
+     *             method: 'POST',
+     *             headers: {
+     *                 'Content-Type': 'application/json',
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             },
+     *             body: JSON.stringify(classData)
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             const errorData = await response.json();
+     *             throw new Error(errorData.message || 'Failed to create class');
+     *         }
+     * 
+     *         const newClass = await response.json();
+     *         return newClass;
+     *     } catch (error) {
+     *         console.error('Error creating class:', error);
+     *         throw error;
+     *     }
+     * }
+     * 
+     * Example MySQL INSERT query:
+     * INSERT INTO Classes (TrainerID, Title, Description, StartDateTime, EndDateTime, Location, Capacity, Status)
+     * VALUES (?, ?, ?, CONCAT(?, ' ', ?), DATE_ADD(CONCAT(?, ' ', ?), INTERVAL 60 MINUTE), ?, ?, 'Scheduled')
+     */
+    async createClass(classData) {
+        try {
+            // PLACEHOLDER: Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // PLACEHOLDER: Generate ID and save to localStorage
+            // TODO: Replace with actual API call
+            const newClass = {
+                id: Date.now(), // Simple ID generation (use database ID in production)
+                ...classData,
+                createdAt: new Date().toISOString()
+            };
+
+            // Add to classes array
+            this.classes.push(newClass);
+
+            // Save to localStorage (for demo - replace with API call)
+            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
+
+            return newClass;
+        } catch (error) {
+            console.error('Error creating class:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Update an existing class
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * @param {number} classId - ID of the class to update
+     * @param {Object} classData - Updated class data
+     * 
+     * Example API call:
+     * async updateClass(classId, classData) {
+     *     try {
+     *         const response = await fetch(`https://api.yourdomain.com/api/classes/${classId}`, {
+     *             method: 'PUT',
+     *             headers: {
+     *                 'Content-Type': 'application/json',
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             },
+     *             body: JSON.stringify(classData)
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             const errorData = await response.json();
+     *             throw new Error(errorData.message || 'Failed to update class');
+     *         }
+     * 
+     *         const updatedClass = await response.json();
+     *         return updatedClass;
+     *     } catch (error) {
+     *         console.error('Error updating class:', error);
+     *         throw error;
+     *     }
+     * }
+     * 
+     * Example MySQL UPDATE query:
+     * UPDATE Classes 
+     * SET Title = ?, Description = ?, StartDateTime = CONCAT(?, ' ', ?), 
+     *     EndDateTime = DATE_ADD(CONCAT(?, ' ', ?), INTERVAL 60 MINUTE),
+     *     Location = ?, Capacity = ?
+     * WHERE ClassID = ? AND TrainerID = ?
+     */
+    async updateClass(classId, classData) {
+        try {
+            // PLACEHOLDER: Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // PLACEHOLDER: Update in localStorage
+            // TODO: Replace with actual API call
+            const classIndex = this.classes.findIndex(c => c.id === classId);
+            
+            if (classIndex === -1) {
+                throw new Error('Class not found');
+            }
+
+            // Update class data (preserve ID)
+            this.classes[classIndex] = {
+                ...this.classes[classIndex],
+                ...classData,
+                id: classId,
+                updatedAt: new Date().toISOString()
+            };
+
+            // Save to localStorage (for demo - replace with API call)
+            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
+
+            return this.classes[classIndex];
+        } catch (error) {
+            console.error('Error updating class:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Delete a class
+     * TODO: Replace this with actual API call to your backend
+     * 
+     * @param {number} classId - ID of the class to delete
+     * 
+     * Example API call:
+     * async deleteClass(classId) {
+     *     if (!confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+     *         return;
+     *     }
+     * 
+     *     try {
+     *         const response = await fetch(`https://api.yourdomain.com/api/classes/${classId}`, {
+     *             method: 'DELETE',
+     *             headers: {
+     *                 'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+     *             }
+     *         });
+     * 
+     *         if (!response.ok) {
+     *             const errorData = await response.json();
+     *             throw new Error(errorData.message || 'Failed to delete class');
+     *         }
+     * 
+     *         // Remove from local array
+     *         this.classes = this.classes.filter(c => c.id !== classId);
+     *         this.applyFiltersAndSort();
+     *         this.renderClasses();
+     *     } catch (error) {
+     *         console.error('Error deleting class:', error);
+     *         this.showError(error.message || 'Failed to delete class');
+     *     }
+     * }
+     * 
+     * Example MySQL DELETE query:
+     * DELETE FROM Classes WHERE ClassID = ? AND TrainerID = ?
+     */
+    async deleteClass(classId) {
+        // Confirm deletion
+        if (!confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            // PLACEHOLDER: Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // PLACEHOLDER: Remove from localStorage
+            // TODO: Replace with actual API call
+            this.classes = this.classes.filter(c => c.id !== classId);
+            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
+
+            // Also remove related bookings (in production, handle this on backend)
+            this.bookings = this.bookings.filter(b => b.classId !== classId);
+            localStorage.setItem(`trainer_${this.trainerId}_bookings`, JSON.stringify(this.bookings));
+
+            // Refresh the display
+            this.applyFiltersAndSort();
+            this.renderClasses();
+            this.updateStats();
+            this.hideBookings();
+        } catch (error) {
+            console.error('Error deleting class:', error);
+            this.showError(error.message || 'Failed to delete class');
+        }
+    },
+
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+    /**
+     * Escape HTML to prevent XSS attacks
+     * @param {string} text - Text to escape
+     * @returns {string} - Escaped text
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+    /**
+     * Show error message to user
+     * @param {string} message - Error message
+     */
+    showError(message) {
+        alert(message); // Simple alert - can be replaced with a toast notification
+    },
+
+    /**
+     * Logout and redirect to login page
+     */
+    logout() {
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('trainerId');
+            localStorage.removeItem('hpt_trainer_id');
+            localStorage.removeItem('trainerEmail');
+            localStorage.removeItem('trainerName');
+            window.location.href = 'login.html';
+        }
+    }
+};
+
+// ============================================================================
+// INITIALIZE PORTAL WHEN PAGE LOADS
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    trainerPortal.init();
+});
+
+// Close modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('classModal');
+    if (e.target === modal) {
+        trainerPortal.closeModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        trainerPortal.closeModal();
+    }
+});

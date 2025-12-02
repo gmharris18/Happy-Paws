@@ -1,6 +1,6 @@
-CREATE DATABASE happypaws;
+-- CREATE DATABASE uauqx98rw924g6sp;
 
-USE happypaws;
+USE uauqx98rw924g6sp;
 
 -- Customer
 

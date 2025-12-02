@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+// CORS headers for development
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -37,12 +48,12 @@ export async function GET(request) {
       params
     );
 
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, { headers: corsHeaders });
   } catch (err) {
     console.error("Classes GET error", err);
     return NextResponse.json(
       { message: "Unable to load classes" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -70,7 +81,7 @@ export async function POST(request) {
     ) {
       return NextResponse.json(
         { message: "Missing required fields" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -91,13 +102,13 @@ export async function POST(request) {
 
     return NextResponse.json(
       { message: "Class created", classId: result.insertId },
-      { status: 201 }
+      { status: 201, headers: corsHeaders }
     );
   } catch (err) {
     console.error("Classes POST error", err);
     return NextResponse.json(
       { message: "Unable to create class" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+// CORS headers for development
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function PATCH(request, { params }) {
   try {
     const { id } = params;
@@ -46,7 +57,7 @@ export async function PATCH(request, { params }) {
     if (updates.length === 0) {
       return NextResponse.json(
         { message: "No fields to update" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -57,12 +68,12 @@ export async function PATCH(request, { params }) {
       values
     );
 
-    return NextResponse.json({ message: "Class updated" });
+    return NextResponse.json({ message: "Class updated" }, { headers: corsHeaders });
   } catch (err) {
     console.error("Classes PATCH error", err);
     return NextResponse.json(
       { message: "Unable to update class" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -80,18 +91,18 @@ export async function DELETE(request, { params }) {
     if (bookings[0].count > 0) {
       return NextResponse.json(
         { message: "Cannot delete class with active bookings" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     await query("DELETE FROM Class WHERE ClassID = ?", [id]);
 
-    return NextResponse.json({ message: "Class deleted" });
+    return NextResponse.json({ message: "Class deleted" }, { headers: corsHeaders });
   } catch (err) {
     console.error("Classes DELETE error", err);
     return NextResponse.json(
       { message: "Unable to delete class" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

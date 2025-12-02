@@ -352,27 +352,71 @@
       }
 
       async function authenticateCustomer(email, password) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        if (!email || !password) {
-          throw new Error('Email and password are required');
+        try {
+          const response = await fetch('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: email,
+              password: password,
+              role: 'customer'
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || 'Invalid email or password');
+          }
+
+          if (data.role === 'customer' && data.customerId) {
+            localStorage.setItem('customerId', data.customerId);
+            localStorage.setItem('hpt_customer_id', data.customerId);
+            localStorage.setItem('customerEmail', email);
+            return true;
+          }
+
+          throw new Error('Invalid response from server');
+        } catch (error) {
+          console.error('Login error:', error);
+          throw error;
         }
-        const customerId = email.toLowerCase().replace(/[^a-z0-9]/g, '') || 'customer1';
-        localStorage.setItem('customerId', customerId);
-        localStorage.setItem('hpt_customer_id', customerId);
-        localStorage.setItem('customerEmail', email);
-        return true;
       }
 
       async function authenticateTrainer(email, password) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        if (!email || !password) {
-          throw new Error('Email and password are required');
+        try {
+          const response = await fetch('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: email,
+              password: password,
+              role: 'trainer'
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || 'Invalid email or password');
+          }
+
+          if (data.role === 'trainer' && data.trainerId) {
+            localStorage.setItem('trainerId', data.trainerId);
+            localStorage.setItem('hpt_trainer_id', data.trainerId);
+            localStorage.setItem('trainerEmail', email);
+            return true;
+          }
+
+          throw new Error('Invalid response from server');
+        } catch (error) {
+          console.error('Login error:', error);
+          throw error;
         }
-        const trainerId = email.toLowerCase().replace(/[^a-z0-9]/g, '') || 'trainer1';
-        localStorage.setItem('trainerId', trainerId);
-        localStorage.setItem('hpt_trainer_id', trainerId);
-        localStorage.setItem('trainerEmail', email);
-        return true;
       }
 
       async function authenticateUser(email, password, role) {

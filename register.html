@@ -196,6 +196,48 @@
               <div class="error-message" id="roleError"></div>
             </div>
 
+            <!-- Customer-only fields -->
+            <div id="customerFields" class="hidden">
+              <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2" for="address">Address</label>
+                <input
+                  type="text"
+                  id="address"
+                  class="form-input w-full px-4 py-3 border-2 border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
+                  placeholder="123 Main St, City, State ZIP"
+                />
+                <div class="error-message" id="addressError"></div>
+              </div>
+            </div>
+
+            <!-- Trainer-only fields -->
+            <div id="trainerFields" class="hidden">
+              <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2" for="specialization">Specialization</label>
+                <select id="specialization" class="form-select w-full px-4 py-3 border-2 border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                  <option value="">Select specialization...</option>
+                  <option value="Puppy obedience">Puppy obedience</option>
+                  <option value="Agility training">Agility training</option>
+                  <option value="Behavior correction">Behavior correction</option>
+                  <option value="Service dogs">Service dogs</option>
+                  <option value="Basic obedience">Basic obedience</option>
+                </select>
+                <div class="error-message" id="specializationError"></div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2" for="yearsOfExperience">Years of Experience</label>
+                <input
+                  type="number"
+                  id="yearsOfExperience"
+                  class="form-input w-full px-4 py-3 border-2 border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
+                  placeholder="0"
+                  min="0"
+                  max="60"
+                />
+                <div class="error-message" id="yearsOfExperienceError"></div>
+              </div>
+            </div>
+
             <div>
               <label class="block text-sm font-semibold text-slate-700 mb-2" for="password">Password</label>
               <div class="relative">
@@ -281,6 +323,11 @@
       const registerButton = document.getElementById('registerButton');
       const successMessage = document.getElementById('successMessage');
       const passwordStrength = document.getElementById('passwordStrength');
+      const customerFields = document.getElementById('customerFields');
+      const trainerFields = document.getElementById('trainerFields');
+      const addressInput = document.getElementById('address');
+      const specializationSelect = document.getElementById('specialization');
+      const yearsOfExperienceInput = document.getElementById('yearsOfExperience');
 
       const firstNameError = document.getElementById('firstNameError');
       const lastNameError = document.getElementById('lastNameError');
@@ -289,6 +336,9 @@
       const roleError = document.getElementById('roleError');
       const passwordError = document.getElementById('passwordError');
       const confirmPasswordError = document.getElementById('confirmPasswordError');
+      const addressError = document.getElementById('addressError');
+      const specializationError = document.getElementById('specializationError');
+      const yearsOfExperienceError = document.getElementById('yearsOfExperienceError');
 
       // ============================================================================
       // PASSWORD TOGGLE FUNCTIONALITY
@@ -390,6 +440,9 @@
         clearError(roleError);
         clearError(passwordError);
         clearError(confirmPasswordError);
+        clearError(addressError);
+        clearError(specializationError);
+        clearError(yearsOfExperienceError);
         
         firstNameInput.classList.remove('error');
         lastNameInput.classList.remove('error');
@@ -398,6 +451,9 @@
         roleSelect.classList.remove('error');
         passwordInput.classList.remove('error');
         confirmPasswordInput.classList.remove('error');
+        addressInput.classList.remove('error');
+        specializationSelect.classList.remove('error');
+        yearsOfExperienceInput.classList.remove('error');
       }
 
       function validateForm() {
@@ -464,6 +520,33 @@
           isValid = false;
         }
 
+        // Validate role-specific fields
+        if (role === 'customer') {
+          const address = addressInput.value.trim();
+          if (!address) {
+            showError(addressError, 'Address is required');
+            isValid = false;
+          } else if (address.length < 5) {
+            showError(addressError, 'Please enter a valid address');
+            isValid = false;
+          }
+        } else if (role === 'trainer') {
+          const specialization = specializationSelect.value.trim();
+          if (!specialization) {
+            showError(specializationError, 'Please select a specialization');
+            isValid = false;
+          }
+
+          const years = parseInt(yearsOfExperienceInput.value);
+          if (!yearsOfExperienceInput.value || yearsOfExperienceInput.value === '') {
+            showError(yearsOfExperienceError, 'Years of experience is required');
+            isValid = false;
+          } else if (isNaN(years) || years < 0 || years > 60) {
+            showError(yearsOfExperienceError, 'Years of experience must be between 0 and 60');
+            isValid = false;
+          }
+        }
+
         return isValid;
       }
 
@@ -480,6 +563,14 @@
           password: passwordInput.value
         };
 
+        // Add role-specific fields
+        if (roleSelect.value === 'customer') {
+          registrationData.address = addressInput.value.trim();
+        } else if (roleSelect.value === 'trainer') {
+          registrationData.specialization = specializationSelect.value.trim();
+          registrationData.yearsOfExperience = parseInt(yearsOfExperienceInput.value) || 0;
+        }
+
         console.log('Registration data:', {
           ...registrationData,
           password: '***'
@@ -490,12 +581,44 @@
       }
 
       async function sendRegistrationToServer(data) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        return {
-          success: true,
-          message: 'Account created successfully',
-          userId: Math.floor(Math.random() * 10000)
-        };
+        try {
+          const response = await fetch('http://localhost:3000/api/auth/signup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              phone: data.phone,
+              password: data.password,
+              role: data.role,
+              address: data.address || null,
+              specialization: data.specialization || null,
+              yearsOfExperience: data.yearsOfExperience || null
+            })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.message || 'Failed to create account');
+          }
+
+          return {
+            success: true,
+            message: result.message || 'Account created successfully',
+            userId: result.customerId || result.trainerId,
+            role: result.role
+          };
+        } catch (error) {
+          console.error('Registration error:', error);
+          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('Cannot connect to server. Make sure npm run dev is running on http://localhost:3000');
+          }
+          throw new Error(error.message || 'Failed to create account. Please try again.');
+        }
       }
 
       // ============================================================================
@@ -559,6 +682,37 @@
 
       roleSelect.addEventListener('change', () => {
         clearError(roleError);
+        const role = roleSelect.value;
+        
+        // Show/hide fields based on role
+        if (role === 'customer') {
+          customerFields.classList.remove('hidden');
+          trainerFields.classList.add('hidden');
+          addressInput.required = true;
+          specializationSelect.required = false;
+          yearsOfExperienceInput.required = false;
+        } else if (role === 'trainer') {
+          customerFields.classList.add('hidden');
+          trainerFields.classList.remove('hidden');
+          addressInput.required = false;
+          specializationSelect.required = true;
+          yearsOfExperienceInput.required = true;
+        } else {
+          customerFields.classList.add('hidden');
+          trainerFields.classList.add('hidden');
+          addressInput.required = false;
+          specializationSelect.required = false;
+          yearsOfExperienceInput.required = false;
+        }
+        
+        // Clear values when switching roles
+        if (role !== 'customer') {
+          addressInput.value = '';
+        }
+        if (role !== 'trainer') {
+          specializationSelect.value = '';
+          yearsOfExperienceInput.value = '';
+        }
       });
 
       confirmPasswordInput.addEventListener('input', () => {

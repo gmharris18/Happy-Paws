@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+// CORS headers for development
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -45,12 +56,12 @@ export async function GET(request) {
       params
     );
 
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, { headers: corsHeaders });
   } catch (err) {
     console.error("Bookings GET error", err);
     return NextResponse.json(
       { message: "Unable to load bookings" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -62,7 +73,7 @@ export async function POST(request) {
     if (!customerId || !petId || !classId) {
       return NextResponse.json(
         { message: "Missing required fields" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -82,7 +93,7 @@ export async function POST(request) {
     if (klass.BookedCount >= klass.Capacity) {
       return NextResponse.json(
         { message: "Class is full" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -91,7 +102,7 @@ export async function POST(request) {
     if (!employee) {
       return NextResponse.json(
         { message: "No employee available for booking" },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -105,13 +116,13 @@ export async function POST(request) {
 
     return NextResponse.json(
       { message: "Booked", bookingId: result.insertId },
-      { status: 201 }
+      { status: 201, headers: corsHeaders }
     );
   } catch (err) {
     console.error("Bookings POST error", err);
     return NextResponse.json(
       { message: "Unable to create booking" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -123,7 +134,7 @@ export async function PATCH(request) {
     if (!bookingId) {
       return NextResponse.json(
         { message: "bookingId is required" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -135,12 +146,12 @@ export async function PATCH(request) {
       `,
       [bookingId]
     );
-    return NextResponse.json({ message: "Booking cancelled" });
+    return NextResponse.json({ message: "Booking cancelled" }, { headers: corsHeaders });
   } catch (err) {
     console.error("Bookings PATCH error", err);
     return NextResponse.json(
       { message: "Unable to cancel booking" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { apiCall } from "@/lib/api";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -30,8 +29,9 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const data = await apiCall("/api/auth/signup", {
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firstName: form.firstName,
           lastName: form.lastName,
@@ -40,6 +40,10 @@ export default function SignupPage() {
           password: form.password
         })
       });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Unable to create account");
+      }
       if (data.customerId) {
         window.localStorage.setItem(
           "hpt_customer_id",

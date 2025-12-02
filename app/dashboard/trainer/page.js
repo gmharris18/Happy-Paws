@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiCall } from "@/lib/api";
 import {
   LineChart,
   Line,
@@ -47,11 +46,24 @@ export default function TrainerDashboardPage() {
     async function load() {
       try {
         setLoading(true);
-        const [classesData, bookingsData, analyticsData] = await Promise.all([
-          apiCall(`/api/classes?trainerId=${trainerId}`),
-          apiCall(`/api/bookings?trainerId=${trainerId}`),
-          apiCall(`/api/analytics?trainerId=${trainerId}`)
+        const [classesRes, bookingsRes, analyticsRes] = await Promise.all([
+          fetch(`/api/classes?trainerId=${trainerId}`),
+          fetch(`/api/bookings?trainerId=${trainerId}`),
+          fetch(`/api/analytics?trainerId=${trainerId}`)
         ]);
+        const [classesData, bookingsData, analyticsData] = await Promise.all([
+          classesRes.json(),
+          bookingsRes.json(),
+          analyticsRes.json()
+        ]);
+        if (!classesRes.ok)
+          throw new Error(classesData.message || "Unable to load classes");
+        if (!bookingsRes.ok)
+          throw new Error(bookingsData.message || "Unable to load bookings");
+        if (!analyticsRes.ok)
+          throw new Error(
+            analyticsData.message || "Unable to load analytics"
+          );
         setClasses(classesData);
         setBookings(bookingsData);
         setAnalytics(analyticsData);
@@ -69,10 +81,13 @@ export default function TrainerDashboardPage() {
     if (!trainerId) return;
     try {
       setSaving(true);
-      await apiCall("/api/classes", {
+      const res = await fetch("/api/classes", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ trainerId, ...classForm })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to create class");
       setClassForm({
         title: "",
         description: "",
@@ -84,8 +99,8 @@ export default function TrainerDashboardPage() {
         price: 65,
         location: ""
       });
-      const refreshed = await apiCall(`/api/classes?trainerId=${trainerId}`);
-      setClasses(refreshed);
+      const refreshed = await fetch(`/api/classes?trainerId=${trainerId}`);
+      setClasses(await refreshed.json());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -99,7 +114,9 @@ export default function TrainerDashboardPage() {
     setLoadingRoster(true);
     setError("");
     try {
-      const data = await apiCall(`/api/bookings?classId=${classId}`);
+      const res = await fetch(`/api/bookings?classId=${classId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to load roster");
       setRoster(data);
     } catch (err) {
       setError(err.message);
@@ -113,12 +130,15 @@ export default function TrainerDashboardPage() {
     setError("");
     setSaving(true);
     try {
-      await apiCall(`/api/classes/${classId}`, {
+      const res = await fetch(`/api/classes/${classId}`, {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(partial)
       });
-      const refreshed = await apiCall(`/api/classes?trainerId=${trainerId}`);
-      setClasses(refreshed);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to update class");
+      const refreshed = await fetch(`/api/classes?trainerId=${trainerId}`);
+      setClasses(await refreshed.json());
     } catch (err) {
       setError(err.message);
     } finally {

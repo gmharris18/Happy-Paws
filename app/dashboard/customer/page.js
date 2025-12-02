@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiCall } from "@/lib/api";
 
 export default function CustomerDashboardPage() {
   const [customerId, setCustomerId] = useState(null);
@@ -36,7 +35,9 @@ export default function CustomerDashboardPage() {
     if (!customerId) return;
     async function loadPets() {
       try {
-        const data = await apiCall(`/api/pets?customerId=${customerId}`);
+        const res = await fetch(`/api/pets?customerId=${customerId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Unable to load pets");
         setPets(data);
       } catch (err) {
         setError(err.message);
@@ -46,7 +47,9 @@ export default function CustomerDashboardPage() {
     }
     async function loadBookings() {
       try {
-        const data = await apiCall(`/api/bookings?customerId=${customerId}`);
+        const res = await fetch(`/api/bookings?customerId=${customerId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Unable to load bookings");
         setBookings(data);
       } catch (err) {
         setError(err.message);
@@ -56,7 +59,9 @@ export default function CustomerDashboardPage() {
     }
     async function loadClasses() {
       try {
-        const data = await apiCall(`/api/classes`);
+        const res = await fetch(`/api/classes`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Unable to load classes");
         setAvailableClasses(data);
       } catch (err) {
         setError(err.message);
@@ -73,10 +78,13 @@ export default function CustomerDashboardPage() {
     e.preventDefault();
     if (!customerId) return;
     try {
-      await apiCall("/api/pets", {
+      const res = await fetch("/api/pets", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId, ...petForm })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to add pet");
       setPetForm({
         name: "",
         species: "Dog",
@@ -84,8 +92,8 @@ export default function CustomerDashboardPage() {
         birthDate: "",
         notes: ""
       });
-      const refreshed = await apiCall(`/api/pets?customerId=${customerId}`);
-      setPets(refreshed);
+      const refreshed = await fetch(`/api/pets?customerId=${customerId}`);
+      setPets(await refreshed.json());
     } catch (err) {
       setError(err.message);
     }
@@ -95,13 +103,16 @@ export default function CustomerDashboardPage() {
     setBookingMessage("");
     setError("");
     try {
-      await apiCall("/api/bookings", {
+      const res = await fetch("/api/bookings", {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bookingId })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to cancel booking");
       setBookingMessage("Booking cancelled.");
-      const refreshed = await apiCall(`/api/bookings?customerId=${customerId}`);
-      setBookings(refreshed);
+      const refreshed = await fetch(`/api/bookings?customerId=${customerId}`);
+      setBookings(await refreshed.json());
     } catch (err) {
       setError(err.message);
     }
@@ -113,18 +124,21 @@ export default function CustomerDashboardPage() {
     setBookingMessage("");
     setError("");
     try {
-      await apiCall("/api/bookings", {
+      const res = await fetch("/api/bookings", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerId: Number(customerId),
           petId: Number(bookForm.petId),
           classId: Number(bookForm.classId)
         })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to book class");
       setBookingMessage("Class booked successfully.");
       setBookForm({ petId: "", classId: "" });
-      const refreshed = await apiCall(`/api/bookings?customerId=${customerId}`);
-      setBookings(refreshed);
+      const refreshed = await fetch(`/api/bookings?customerId=${customerId}`);
+      setBookings(await refreshed.json());
     } catch (err) {
       setError(err.message);
     }

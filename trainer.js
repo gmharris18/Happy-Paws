@@ -192,18 +192,20 @@ const trainerPortal = {
      */
     async loadClasses() {
         try {
-            // PLACEHOLDER: Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Call the API endpoint
+            const response = await fetch(`http://localhost:3000/api/classes?trainerId=${this.trainerId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // PLACEHOLDER: Load from localStorage for demo purposes
-            // TODO: Replace with actual API call to your backend
-            const storedClasses = localStorage.getItem(`trainer_${this.trainerId}_classes`);
-            this.classes = storedClasses ? JSON.parse(storedClasses) : [];
-
-            // If no classes in storage, initialize with empty array
-            if (!this.classes) {
-                this.classes = [];
+            if (!response.ok) {
+                throw new Error('Failed to load classes');
             }
+
+            const data = await response.json();
+            this.classes = data || [];
 
             // Apply filters and sorting
             this.applyFiltersAndSort();
@@ -254,17 +256,20 @@ const trainerPortal = {
      */
     async loadBookings() {
         try {
-            // PLACEHOLDER: Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Call the API endpoint
+            const response = await fetch(`http://localhost:3000/api/bookings?trainerId=${this.trainerId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // PLACEHOLDER: Load from localStorage for demo
-            // TODO: Replace with actual API call
-            const storedBookings = localStorage.getItem(`trainer_${this.trainerId}_bookings`);
-            this.bookings = storedBookings ? JSON.parse(storedBookings) : [];
-
-            if (!this.bookings) {
-                this.bookings = [];
+            if (!response.ok) {
+                throw new Error('Failed to load bookings');
             }
+
+            const data = await response.json();
+            this.bookings = data || [];
 
             this.updateStats();
         } catch (error) {
@@ -844,22 +849,36 @@ const trainerPortal = {
      */
     async createClass(classData) {
         try {
-            // PLACEHOLDER: Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 800));
+            // Call the API endpoint
+            const response = await fetch('http://localhost:3000/api/classes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    trainerId: this.trainerId,
+                    title: classData.title,
+                    description: classData.description,
+                    type: classData.type || 'Group',
+                    startDateTime: classData.startDateTime,
+                    capacity: classData.capacity,
+                    price: classData.price
+                })
+            });
 
-            // PLACEHOLDER: Generate ID and save to localStorage
-            // TODO: Replace with actual API call
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create class');
+            }
+
+            const result = await response.json();
             const newClass = {
-                id: Date.now(), // Simple ID generation (use database ID in production)
-                ...classData,
-                createdAt: new Date().toISOString()
+                ClassID: result.classId,
+                ...classData
             };
 
-            // Add to classes array
-            this.classes.push(newClass);
-
-            // Save to localStorage (for demo - replace with API call)
-            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
+            // Reload classes to get the full data from the database
+            await this.loadClasses();
 
             return newClass;
         } catch (error) {
@@ -909,29 +928,24 @@ const trainerPortal = {
      */
     async updateClass(classId, classData) {
         try {
-            // PLACEHOLDER: Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 800));
+            // Call the API endpoint
+            const response = await fetch(`http://localhost:3000/api/classes/${classId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(classData)
+            });
 
-            // PLACEHOLDER: Update in localStorage
-            // TODO: Replace with actual API call
-            const classIndex = this.classes.findIndex(c => c.id === classId);
-            
-            if (classIndex === -1) {
-                throw new Error('Class not found');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update class');
             }
 
-            // Update class data (preserve ID)
-            this.classes[classIndex] = {
-                ...this.classes[classIndex],
-                ...classData,
-                id: classId,
-                updatedAt: new Date().toISOString()
-            };
+            // Reload classes to get updated data
+            await this.loadClasses();
 
-            // Save to localStorage (for demo - replace with API call)
-            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
-
-            return this.classes[classIndex];
+            return await response.json();
         } catch (error) {
             console.error('Error updating class:', error);
             throw error;
@@ -983,16 +997,21 @@ const trainerPortal = {
         }
 
         try {
-            // PLACEHOLDER: Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Note: If your API doesn't have DELETE, you might need to use PATCH to mark as cancelled
+            // For now, we'll try DELETE - adjust if your API uses a different method
+            const response = await fetch(`http://localhost:3000/api/classes/${classId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // PLACEHOLDER: Remove from localStorage
-            // TODO: Replace with actual API call
-            this.classes = this.classes.filter(c => c.id !== classId);
-            localStorage.setItem(`trainer_${this.trainerId}_classes`, JSON.stringify(this.classes));
+            if (!response.ok) {
+                throw new Error('Failed to delete class');
+            }
 
-            // Also remove related bookings (in production, handle this on backend)
-            this.bookings = this.bookings.filter(b => b.classId !== classId);
+            // Reload classes to reflect the deletion
+            await this.loadClasses();
             localStorage.setItem(`trainer_${this.trainerId}_bookings`, JSON.stringify(this.bookings));
 
             // Refresh the display

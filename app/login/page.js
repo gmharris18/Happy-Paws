@@ -17,10 +17,15 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const data = await apiCall("/api/auth/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role })
       });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Login failed");
+      }
       if (data.role === "trainer") {
         window.localStorage.setItem("hpt_trainer_id", data.trainerId);
         window.location.href = "/dashboard/trainer";

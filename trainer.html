@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trainer Portal - Happy Paws Training</title>
+    <!-- Tailwind via CDN for this static page only -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * {
             margin: 0;
@@ -12,9 +14,8 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f1f5f9;
-            min-height: 100vh;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+              sans-serif;
         }
 
         /* Header */
@@ -677,17 +678,50 @@
         }
     </style>
 </head>
-<body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="header-title">
-                🐾 Trainer Portal
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+    <header
+      class="border-b bg-white/80 backdrop-blur sticky top-0 z-20 shadow-sm"
+    >
+      <div
+        class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-2">
+          <div
+            class="h-9 w-9 rounded-full bg-sky-100 flex items-center justify-center"
+          >
+            <span class="text-sky-600 text-xl font-black">HP</span>
+          </div>
+          <div>
+            <div class="text-lg font-semibold tracking-tight">
+              Happy Paws Training
             </div>
-            <div class="header-actions">
-                <button class="btn-secondary" onclick="trainerPortal.logout()">Logout</button>
-            </div>
+            <p class="text-xs text-slate-500">
+              Book classes &amp; private training with ease
+            </p>
+          </div>
         </div>
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+          <a href="index.html" class="text-slate-700 hover:text-sky-600">Home</a>
+          <a
+            href="HappyPaws_9/customer.html"
+            class="text-slate-700 hover:text-sky-600"
+            >Customer Portal</a
+          >
+          <a
+            href="trainer.html"
+            class="text-sky-600 font-semibold"
+            >Trainer Portal</a
+          >
+        </nav>
+        <div class="flex items-center gap-3">
+          <button
+            onclick="trainerPortal.logout()"
+            class="text-sm font-medium text-slate-700 hover:text-sky-600"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
     </header>
 
     <!-- Main Container -->
@@ -862,6 +896,19 @@
         </div>
     </div>
 
+    <footer class="border-t bg-white mt-8">
+      <div
+        class="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-500 flex justify-between"
+      >
+        <span>© <span id="year"></span> Happy Paws Training</span>
+        <span>Trainer Portal</span>
+      </div>
+    </footer>
+
     <script src="trainer.js"></script>
+    <script>
+      document.getElementById("year").textContent =
+        new Date().getFullYear().toString();
+    </script>
 </body>
 </html>

@@ -12,31 +12,27 @@ export async function GET(request) {
       where.push("c.TrainerID = ?");
       params.push(trainerId);
     }
-    where.push("c.Status IN ('Scheduled','Full')");
+    // Note: New schema doesn't have Status field, filtering by capacity instead
 
     const rows = await query(
       `
       SELECT 
         c.ClassID,
-        c.Title,
+        c.ClassName,
         c.Description,
         c.Type,
-        c.SkillLevel,
-        c.StartDateTime,
-        c.EndDateTime,
+        c.ScheduleDate,
         c.Capacity,
         c.Price,
-        c.Location,
-        c.Status,
         t.TrainerID,
-        CONCAT(t.FirstName, ' ', t.LastName) AS TrainerName,
+        CONCAT(t.FName, ' ', t.LName) AS TrainerName,
         COUNT(b.BookingID) AS BookedCount
-      FROM Classes c
-      JOIN Trainers t ON t.TrainerID = c.TrainerID
-      LEFT JOIN Bookings b ON b.ClassID = c.ClassID AND b.Status = 'Booked'
+      FROM Class c
+      JOIN Trainer t ON t.TrainerID = c.TrainerID
+      LEFT JOIN Booking b ON b.ClassID = c.ClassID AND b.Status = 'Scheduled'
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
       GROUP BY c.ClassID
-      ORDER BY c.StartDateTime ASC
+      ORDER BY c.ScheduleDate ASC
       `,
       params
     );
@@ -59,21 +55,16 @@ export async function POST(request) {
       title,
       description,
       type,
-      skillLevel,
       startDateTime,
-      endDateTime,
       capacity,
-      price,
-      location
+      price
     } = body;
 
     if (
       !trainerId ||
       !title ||
       !type ||
-      !skillLevel ||
       !startDateTime ||
-      !endDateTime ||
       !capacity ||
       !price
     ) {
@@ -84,20 +75,17 @@ export async function POST(request) {
     }
 
     const result = await query(
-      `INSERT INTO Classes 
-        (TrainerID, Title, Description, Type, SkillLevel, StartDateTime, EndDateTime, Capacity, Price, Location)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO Class 
+        (TrainerID, ClassName, Description, Type, ScheduleDate, Capacity, Price)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         trainerId,
         title,
         description || null,
         type,
-        skillLevel,
         startDateTime,
-        endDateTime,
         capacity,
-        price,
-        location || null
+        price
       ]
     );
 

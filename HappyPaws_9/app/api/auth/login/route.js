@@ -16,17 +16,18 @@ export async function POST(request) {
 
     if (role === "trainer") {
       const rows = await query(
-        "SELECT TrainerID AS id, PasswordHash FROM Trainers WHERE Email = ? AND Active = 1",
+        "SELECT TrainerID AS id, Password FROM Trainer WHERE Email = ?",
         [email]
       );
-      if (rows.length === 0 || !rows[0].PasswordHash) {
+      if (rows.length === 0) {
         return NextResponse.json(
           { message: "Invalid email or password" },
           { status: 401 }
         );
       }
-      const match = await bcrypt.compare(password, rows[0].PasswordHash);
-      if (!match) {
+      // Note: Your sample data has plain text passwords. For production, use bcrypt.
+      // For now, doing simple comparison since passwords are plain text in sample data
+      if (password !== rows[0].Password) {
         return NextResponse.json(
           { message: "Invalid email or password" },
           { status: 401 }
@@ -37,7 +38,7 @@ export async function POST(request) {
 
     // default: customer login
     const rows = await query(
-      "SELECT CustomerID AS id, PasswordHash FROM Customers WHERE Email = ?",
+      "SELECT CustomerID AS id, Password FROM Customer WHERE Email = ?",
       [email]
     );
     if (rows.length === 0) {
@@ -46,8 +47,8 @@ export async function POST(request) {
         { status: 401 }
       );
     }
-    const match = await bcrypt.compare(password, rows[0].PasswordHash);
-    if (!match) {
+    // Note: Your sample data has plain text passwords. For production, use bcrypt.
+    if (password !== rows[0].Password) {
       return NextResponse.json(
         { message: "Invalid email or password" },
         { status: 401 }

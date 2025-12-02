@@ -13,7 +13,7 @@ export async function GET(request) {
     }
 
     const rows = await query(
-      "SELECT PetID, Name, Species, Breed, BirthDate, Notes FROM Pets WHERE CustomerID = ? ORDER BY Name",
+      "SELECT PetID, Name, Species, Breed FROM Pet WHERE CustomerID = ? ORDER BY Name",
       [customerId]
     );
     return NextResponse.json(rows);
@@ -29,7 +29,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { customerId, name, species, breed, birthDate, notes } = body;
+    const { customerId, name, species, breed } = body;
     if (!customerId || !name || !species) {
       return NextResponse.json(
         { message: "Missing required fields" },
@@ -39,10 +39,10 @@ export async function POST(request) {
 
     const result = await query(
       `
-      INSERT INTO Pets (CustomerID, Name, Species, Breed, BirthDate, Notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO Pet (CustomerID, Name, Species, Breed)
+      VALUES (?, ?, ?, ?)
       `,
-      [customerId, name, species, breed || null, birthDate || null, notes || null]
+      [customerId, name, species, breed || null]
     );
 
     return NextResponse.json(

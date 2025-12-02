@@ -31,18 +31,16 @@ export async function GET(request) {
         b.PetID,
         b.ClassID,
         b.Status,
-        b.PricePaid,
-        b.BookingDateTime,
-        c.Title AS ClassTitle,
-        c.StartDateTime,
-        c.EndDateTime,
-        c.Location,
+        b.BookingDate,
+        c.ClassName AS ClassTitle,
+        c.ScheduleDate,
+        c.Price,
         p.Name AS PetName
-      FROM Bookings b
-      JOIN Classes c ON c.ClassID = b.ClassID
-      JOIN Pets p ON p.PetID = b.PetID
+      FROM Booking b
+      JOIN Class c ON c.ClassID = b.ClassID
+      JOIN Pet p ON p.PetID = b.PetID
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
-      ORDER BY c.StartDateTime DESC
+      ORDER BY c.ScheduleDate DESC
       `,
       params
     );
@@ -71,21 +69,15 @@ export async function POST(request) {
     const [klass] = await query(
       `
       SELECT 
-        ClassID, Price, Capacity, Status,
-        (SELECT COUNT(*) FROM Bookings b WHERE b.ClassID = Classes.ClassID AND b.Status = 'Booked') AS BookedCount
-      FROM Classes
+        ClassID, Price, Capacity,
+        (SELECT COUNT(*) FROM Booking b WHERE b.ClassID = Class.ClassID AND b.Status = 'Scheduled') AS BookedCount
+      FROM Class
       WHERE ClassID = ?
       `,
       [classId]
     );
     if (!klass) {
       return NextResponse.json({ message: "Class not found" }, { status: 404 });
-    }
-    if (klass.Status === "Cancelled") {
-      return NextResponse.json(
-        { message: "Class is cancelled" },
-        { status: 400 }
-      );
     }
     if (klass.BookedCount >= klass.Capacity) {
       return NextResponse.json(
@@ -94,12 +86,21 @@ export async function POST(request) {
       );
     }
 
+    // Get employee ID (using first employee for now, you may want to pass this from frontend)
+    const [employee] = await query("SELECT EmployeeID FROM Employee LIMIT 1", []);
+    if (!employee) {
+      return NextResponse.json(
+        { message: "No employee available for booking" },
+        { status: 500 }
+      );
+    }
+
     const result = await query(
       `
-      INSERT INTO Bookings (CustomerID, PetID, ClassID, Status, PricePaid)
-      VALUES (?, ?, ?, 'Booked', ?)
+      INSERT INTO Booking (CustomerID, PetID, ClassID, EmployeeID, Status, BookingDate)
+      VALUES (?, ?, ?, ?, 'Scheduled', NOW())
       `,
-      [customerId, petId, classId, klass.Price]
+      [customerId, petId, classId, employee.EmployeeID]
     );
 
     return NextResponse.json(
@@ -128,8 +129,8 @@ export async function PATCH(request) {
 
     await query(
       `
-      UPDATE Bookings
-      SET Status = 'Cancelled', CancelledAt = NOW()
+      UPDATE Booking
+      SET Status = 'Cancelled'
       WHERE BookingID = ?
       `,
       [bookingId]

@@ -16,13 +16,13 @@ export async function GET(request) {
     const revenueRows = await query(
       `
       SELECT 
-        DATE_FORMAT(b.BookingDateTime, '%Y-%m') AS Month,
-        SUM(b.PricePaid) AS Revenue
-      FROM Bookings b
-      JOIN Classes c ON c.ClassID = b.ClassID
+        DATE_FORMAT(b.BookingDate, '%Y-%m') AS Month,
+        SUM(c.Price) AS Revenue
+      FROM Booking b
+      JOIN Class c ON c.ClassID = b.ClassID
       ${where.length ? "WHERE " + where.join(" AND ") + " AND" : "WHERE"} 
-        b.Status IN ('Booked','Completed')
-      GROUP BY DATE_FORMAT(b.BookingDateTime, '%Y-%m')
+        b.Status IN ('Scheduled','Completed')
+      GROUP BY DATE_FORMAT(b.BookingDate, '%Y-%m')
       ORDER BY Month
       `,
       params
@@ -32,12 +32,12 @@ export async function GET(request) {
       `
       SELECT 
         t.TrainerID,
-        CONCAT(t.FirstName, ' ', t.LastName) AS TrainerName,
+        CONCAT(t.FName, ' ', t.LName) AS TrainerName,
         COUNT(b.BookingID) AS TotalBookings,
-        SUM(b.PricePaid) AS Revenue
-      FROM Trainers t
-      JOIN Classes c ON c.TrainerID = t.TrainerID
-      LEFT JOIN Bookings b ON b.ClassID = c.ClassID AND b.Status IN ('Booked','Completed')
+        SUM(c.Price) AS Revenue
+      FROM Trainer t
+      JOIN Class c ON c.TrainerID = t.TrainerID
+      LEFT JOIN Booking b ON b.ClassID = c.ClassID AND b.Status IN ('Scheduled','Completed')
       ${trainerId ? "WHERE t.TrainerID = ?" : ""}
       GROUP BY t.TrainerID
       `,
@@ -48,12 +48,12 @@ export async function GET(request) {
       `
       SELECT 
         cu.CustomerID,
-        CONCAT(cu.FirstName, ' ', cu.LastName) AS CustomerName,
+        CONCAT(cu.FName, ' ', cu.LName) AS CustomerName,
         COUNT(b.BookingID) AS BookingsCount,
-        SUM(b.PricePaid) AS TotalSpend
-      FROM Customers cu
-      LEFT JOIN Bookings b ON b.CustomerID = cu.CustomerID AND b.Status IN ('Booked','Completed')
-      ${where.length ? "JOIN Classes c ON c.ClassID = b.ClassID AND " + where.join(" AND ") : ""}
+        SUM(c.Price) AS TotalSpend
+      FROM Customer cu
+      LEFT JOIN Booking b ON b.CustomerID = cu.CustomerID AND b.Status IN ('Scheduled','Completed')
+      ${where.length ? "JOIN Class c ON c.ClassID = b.ClassID AND " + where.join(" AND ") : "LEFT JOIN Class c ON c.ClassID = b.ClassID"}
       GROUP BY cu.CustomerID
       HAVING TotalSpend IS NOT NULL
       ORDER BY TotalSpend DESC
@@ -65,10 +65,10 @@ export async function GET(request) {
     const demandRows = await query(
       `
       SELECT 
-        c.Title,
+        c.ClassName,
         COUNT(b.BookingID) AS BookingsCount
-      FROM Classes c
-      LEFT JOIN Bookings b ON b.ClassID = c.ClassID AND b.Status IN ('Booked','Completed')
+      FROM Class c
+      LEFT JOIN Booking b ON b.ClassID = c.ClassID AND b.Status IN ('Scheduled','Completed')
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
       GROUP BY c.ClassID
       ORDER BY BookingsCount DESC
@@ -80,12 +80,12 @@ export async function GET(request) {
     const peakHours = await query(
       `
       SELECT 
-        HOUR(c.StartDateTime) AS Hour,
+        HOUR(c.ScheduleDate) AS Hour,
         COUNT(b.BookingID) AS BookingsCount
-      FROM Classes c
-      LEFT JOIN Bookings b ON b.ClassID = c.ClassID AND b.Status IN ('Booked','Completed')
+      FROM Class c
+      LEFT JOIN Booking b ON b.ClassID = c.ClassID AND b.Status IN ('Scheduled','Completed')
       ${where.length ? "WHERE " + where.join(" AND") : ""}
-      GROUP BY HOUR(c.StartDateTime)
+      GROUP BY HOUR(c.ScheduleDate)
       ORDER BY Hour
       `,
       params
@@ -94,11 +94,11 @@ export async function GET(request) {
     const cancellationRates = await query(
       `
       SELECT 
-        c.Title,
+        c.ClassName,
         SUM(b.Status = 'Cancelled') AS CancelledCount,
         COUNT(b.BookingID) AS TotalCount
-      FROM Classes c
-      LEFT JOIN Bookings b ON b.ClassID = c.ClassID
+      FROM Class c
+      LEFT JOIN Booking b ON b.ClassID = c.ClassID
       ${where.length ? "WHERE " + where.join(" AND") : ""}
       GROUP BY c.ClassID
       HAVING TotalCount > 0

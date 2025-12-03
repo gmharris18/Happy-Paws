@@ -4,7 +4,7 @@ import { query } from "@/lib/db";
 // CORS headers for development
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
@@ -15,32 +15,32 @@ export async function OPTIONS() {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get("customerId");
+    const trainerId = searchParams.get("trainerId");
     
-    if (!customerId) {
+    if (!trainerId) {
       return NextResponse.json(
-        { message: "customerId is required" },
+        { message: "trainerId is required" },
         { status: 400, headers: corsHeaders }
       );
     }
 
     const rows = await query(
-      "SELECT CustomerID, FName, LName, Email, Phone, Address FROM Customer WHERE CustomerID = ?",
-      [customerId]
+      "SELECT TrainerID, FName, LName, Email, Specialization, YearsOfExperience FROM Trainer WHERE TrainerID = ?",
+      [trainerId]
     );
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { message: "Customer not found" },
+        { message: "Trainer not found" },
         { status: 404, headers: corsHeaders }
       );
     }
 
     return NextResponse.json(rows[0], { headers: corsHeaders });
   } catch (err) {
-    console.error("Customer GET error", err);
+    console.error("Trainer GET error", err);
     return NextResponse.json(
-      { message: "Unable to load customer" },
+      { message: "Unable to load trainer" },
       { status: 500, headers: corsHeaders }
     );
   }
@@ -49,23 +49,23 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get("customerId");
+    const trainerId = searchParams.get("trainerId");
     
-    if (!customerId) {
+    if (!trainerId) {
       return NextResponse.json(
-        { message: "customerId is required" },
+        { message: "trainerId is required" },
         { status: 400, headers: corsHeaders }
       );
     }
 
     const body = await request.json();
-    const { firstName, lastName, email, phone, address, password } = body;
+    const { firstName, lastName, email, specialization, yearsOfExperience, password } = body;
 
     // Check if email is being changed and if new email already exists
     if (email) {
       const existing = await query(
-        "SELECT CustomerID FROM Customer WHERE Email = ? AND CustomerID != ?",
-        [email, customerId]
+        "SELECT TrainerID FROM Trainer WHERE Email = ? AND TrainerID != ?",
+        [email, trainerId]
       );
       if (existing.length > 0) {
         return NextResponse.json(
@@ -90,13 +90,13 @@ export async function PATCH(request) {
       updates.push("Email = ?");
       values.push(email);
     }
-    if (phone !== undefined) {
-      updates.push("Phone = ?");
-      values.push(phone);
+    if (specialization !== undefined) {
+      updates.push("Specialization = ?");
+      values.push(specialization);
     }
-    if (address !== undefined) {
-      updates.push("Address = ?");
-      values.push(address);
+    if (yearsOfExperience !== undefined) {
+      updates.push("YearsOfExperience = ?");
+      values.push(parseInt(yearsOfExperience));
     }
     if (password !== undefined) {
       const bcrypt = await import("bcryptjs");
@@ -112,18 +112,18 @@ export async function PATCH(request) {
       );
     }
 
-    values.push(customerId);
+    values.push(trainerId);
 
     await query(
-      `UPDATE Customer SET ${updates.join(", ")} WHERE CustomerID = ?`,
+      `UPDATE Trainer SET ${updates.join(", ")} WHERE TrainerID = ?`,
       values
     );
 
-    return NextResponse.json({ message: "Customer updated" }, { headers: corsHeaders });
+    return NextResponse.json({ message: "Trainer updated" }, { headers: corsHeaders });
   } catch (err) {
-    console.error("Customer PATCH error", err);
+    console.error("Trainer PATCH error", err);
     return NextResponse.json(
-      { message: "Unable to update customer" },
+      { message: "Unable to update trainer" },
       { status: 500, headers: corsHeaders }
     );
   }
@@ -132,35 +132,35 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get("customerId");
+    const trainerId = searchParams.get("trainerId");
     
-    if (!customerId) {
+    if (!trainerId) {
       return NextResponse.json(
-        { message: "customerId is required" },
+        { message: "trainerId is required" },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Check if customer has bookings
-    const bookings = await query(
-      "SELECT COUNT(*) as count FROM Booking WHERE CustomerID = ?",
-      [customerId]
+    // Check if trainer has classes
+    const classes = await query(
+      "SELECT COUNT(*) as count FROM Class WHERE TrainerID = ?",
+      [trainerId]
     );
 
-    if (bookings[0].count > 0) {
+    if (classes[0].count > 0) {
       return NextResponse.json(
-        { message: "Cannot delete customer with existing bookings" },
+        { message: "Cannot delete trainer with existing classes" },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    await query("DELETE FROM Customer WHERE CustomerID = ?", [customerId]);
+    await query("DELETE FROM Trainer WHERE TrainerID = ?", [trainerId]);
 
-    return NextResponse.json({ message: "Customer deleted" }, { headers: corsHeaders });
+    return NextResponse.json({ message: "Trainer deleted" }, { headers: corsHeaders });
   } catch (err) {
-    console.error("Customer DELETE error", err);
+    console.error("Trainer DELETE error", err);
     return NextResponse.json(
-      { message: "Unable to delete customer" },
+      { message: "Unable to delete trainer" },
       { status: 500, headers: corsHeaders }
     );
   }

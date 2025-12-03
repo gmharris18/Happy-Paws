@@ -205,7 +205,22 @@ const trainerPortal = {
             }
 
             const data = await response.json();
-            this.classes = data || [];
+            // Transform API response to match UI expectations
+            this.classes = (data || []).map(classItem => {
+                const scheduleDate = new Date(classItem.ScheduleDate || classItem.scheduleDate);
+                return {
+                    id: classItem.ClassID || classItem.classId,
+                    name: classItem.ClassName || classItem.className,
+                    description: classItem.Description || classItem.description || '',
+                    date: scheduleDate.toISOString().split('T')[0],
+                    time: scheduleDate.toTimeString().slice(0, 5), // HH:MM format
+                    location: 'Training Facility', // Default since not in DB
+                    capacity: classItem.Capacity || classItem.capacity || 0,
+                    price: classItem.Price || classItem.price || 0,
+                    type: classItem.Type || classItem.type || 'Group',
+                    bookedCount: classItem.BookedCount || classItem.bookedCount || 0
+                };
+            });
 
             // Apply filters and sorting
             this.applyFiltersAndSort();
@@ -447,8 +462,10 @@ const trainerPortal = {
                 minute: '2-digit'
             });
 
-            // Calculate booked count
-            const bookedCount = this.bookings.filter(b => b.classId === classItem.id).length;
+            // Calculate booked count (use bookedCount from API or calculate from bookings)
+            const bookedCount = classItem.bookedCount !== undefined 
+                ? classItem.bookedCount 
+                : this.bookings.filter(b => b.classId === classItem.id).length;
             const isFull = bookedCount >= classItem.capacity;
             const statusBadge = isFull 
                 ? '<span class="badge badge-full">Full</span>'
@@ -637,8 +654,10 @@ const trainerPortal = {
         document.getElementById('classDescription').value = classItem.description || '';
         document.getElementById('classDate').value = classItem.date;
         document.getElementById('classTime').value = classItem.time;
-        document.getElementById('classLocation').value = classItem.location;
+        document.getElementById('classLocation').value = classItem.location || '';
         document.getElementById('classCapacity').value = classItem.capacity;
+        document.getElementById('classPrice').value = classItem.price || 0;
+        document.getElementById('classType').value = classItem.type || 'Group';
 
         this.clearAllErrors();
         document.getElementById('classModal').classList.add('show');
@@ -724,6 +743,14 @@ const trainerPortal = {
             isValid = false;
         }
 
+        // Validate price
+        const classPrice = parseFloat(document.getElementById('classPrice').value);
+        if (!classPrice || classPrice < 0) {
+            this.showFieldError('classPriceError', 'Price must be at least 0');
+            document.getElementById('classPrice').classList.add('error');
+            isValid = false;
+        }
+
         return isValid;
     },
 
@@ -777,6 +804,8 @@ const trainerPortal = {
             time: document.getElementById('classTime').value,
             location: document.getElementById('classLocation').value.trim(),
             capacity: parseInt(document.getElementById('classCapacity').value),
+            price: parseFloat(document.getElementById('classPrice').value) || 0,
+            type: document.getElementById('classType').value || 'Group',
             trainerId: this.trainerId
         };
 
@@ -849,6 +878,9 @@ const trainerPortal = {
      */
     async createClass(classData) {
         try {
+            // Combine date and time into startDateTime
+            const startDateTime = `${classData.date}T${classData.time}:00`;
+            
             // Call the API endpoint
             const response = await fetch('http://localhost:3000/api/classes', {
                 method: 'POST',
@@ -857,12 +889,12 @@ const trainerPortal = {
                 },
                 body: JSON.stringify({
                     trainerId: this.trainerId,
-                    title: classData.title,
-                    description: classData.description,
+                    title: classData.name, // Map name to title
+                    description: classData.description || '',
                     type: classData.type || 'Group',
-                    startDateTime: classData.startDateTime,
+                    startDateTime: startDateTime,
                     capacity: classData.capacity,
-                    price: classData.price
+                    price: classData.price || 0
                 })
             });
 
@@ -871,16 +903,10 @@ const trainerPortal = {
                 throw new Error(errorData.message || 'Failed to create class');
             }
 
-            const result = await response.json();
-            const newClass = {
-                ClassID: result.classId,
-                ...classData
-            };
-
             // Reload classes to get the full data from the database
             await this.loadClasses();
 
-            return newClass;
+            return await response.json();
         } catch (error) {
             console.error('Error creating class:', error);
             throw error;
@@ -928,13 +954,26 @@ const trainerPortal = {
      */
     async updateClass(classId, classData) {
         try {
+            // Combine date and time into startDateTime
+            const startDateTime = `${classData.date}T${classData.time}:00`;
+            
+            // Map form data to API format
+            const updateData = {
+                title: classData.name, // Map name to title
+                description: classData.description || '',
+                type: classData.type || 'Group',
+                startDateTime: startDateTime,
+                capacity: classData.capacity,
+                price: classData.price || 0
+            };
+
             // Call the API endpoint
             const response = await fetch(`http://localhost:3000/api/classes/${classId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(classData)
+                body: JSON.stringify(updateData)
             });
 
             if (!response.ok) {

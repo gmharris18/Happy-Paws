@@ -120,9 +120,22 @@ export default function CustomerDashboardPage() {
 
   async function handleBookClass(e) {
     e.preventDefault();
-    if (!customerId || !bookForm.petId || !bookForm.classId) return;
     setBookingMessage("");
     setError("");
+    
+    if (!customerId) {
+      setError("Please log in as a customer first.");
+      return;
+    }
+    if (!bookForm.petId) {
+      setError("Please select a pet.");
+      return;
+    }
+    if (!bookForm.classId) {
+      setError("Please select a class.");
+      return;
+    }
+    
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",

@@ -29,10 +29,10 @@ export async function GET(request) {
       `
       SELECT 
         c.ClassID,
-        c.ClassName,
+        c.ClassName AS Title,
         c.Description,
         c.Type,
-        c.ScheduleDate,
+        c.ScheduleDate AS StartDateTime,
         c.Capacity,
         c.Price,
         t.TrainerID,

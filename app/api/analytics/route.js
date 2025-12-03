@@ -65,7 +65,7 @@ export async function GET(request) {
     const demandRows = await query(
       `
       SELECT 
-        c.ClassName,
+        c.ClassName AS Title,
         COUNT(b.BookingID) AS BookingsCount
       FROM Class c
       LEFT JOIN Booking b ON b.ClassID = c.ClassID AND b.Status IN ('Scheduled','Completed')

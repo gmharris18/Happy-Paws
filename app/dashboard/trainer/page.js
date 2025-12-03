@@ -78,7 +78,19 @@ export default function TrainerDashboardPage() {
 
   async function handleCreateClass(e) {
     e.preventDefault();
-    if (!trainerId) return;
+    setError("");
+    
+    if (!trainerId) {
+      setError("Please log in as a trainer first.");
+      return;
+    }
+    
+    // Check required fields
+    if (!classForm.title || !classForm.startDateTime || !classForm.capacity || !classForm.price) {
+      setError("Please fill in all required fields (Title, Start date/time, Capacity, Price).");
+      return;
+    }
+    
     try {
       setSaving(true);
       const res = await fetch("/api/classes", {
@@ -99,6 +111,7 @@ export default function TrainerDashboardPage() {
         price: 65,
         location: ""
       });
+      setError(""); // Clear errors on success
       const refreshed = await fetch(`/api/classes?trainerId=${trainerId}`);
       setClasses(await refreshed.json());
     } catch (err) {

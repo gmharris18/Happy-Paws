@@ -61,6 +61,7 @@ const trainerPortal = {
         // Initialize UI
         this.updateProfileDisplay();
         this.renderClasses();
+        this.renderAllBookings();
     },
 
     // ============================================================================
@@ -95,24 +96,41 @@ const trainerPortal = {
      */
     async loadTrainerData() {
         try {
-            // PLACEHOLDER: Load from localStorage for demo
-            // TODO: Replace with actual API call
+            const response = await fetch(`http://localhost:3000/api/trainer?trainerId=${this.trainerId}`);
+            if (response.ok) {
+                const data = await response.json();
+                this.trainerData = {
+                    id: data.TrainerID || this.trainerId,
+                    name: `${data.FName || ''} ${data.LName || ''}`.trim() || 'Trainer',
+                    email: data.Email || '',
+                    firstName: data.FName || 'Trainer',
+                    lastName: data.LName || '',
+                    specialization: data.Specialization || '',
+                    yearsOfExperience: data.YearsOfExperience || 0
+                };
+            } else {
+                // Fallback to localStorage if API fails
+                const trainerEmail = localStorage.getItem('trainerEmail') || 'trainer@example.com';
+                const trainerName = localStorage.getItem('trainerName') || 'Trainer';
+                this.trainerData = {
+                    id: this.trainerId,
+                    name: trainerName,
+                    email: trainerEmail,
+                    firstName: trainerName.split(' ')[0] || 'Trainer',
+                    lastName: trainerName.split(' ').slice(1).join(' ') || ''
+                };
+            }
+        } catch (error) {
+            console.error('Error loading trainer data:', error);
+            // Fallback to localStorage
             const trainerEmail = localStorage.getItem('trainerEmail') || 'trainer@example.com';
             const trainerName = localStorage.getItem('trainerName') || 'Trainer';
-            
             this.trainerData = {
                 id: this.trainerId,
                 name: trainerName,
                 email: trainerEmail,
                 firstName: trainerName.split(' ')[0] || 'Trainer',
                 lastName: trainerName.split(' ').slice(1).join(' ') || ''
-            };
-        } catch (error) {
-            console.error('Error loading trainer data:', error);
-            this.trainerData = {
-                id: this.trainerId,
-                name: 'Trainer',
-                email: 'trainer@example.com'
             };
         }
     },
@@ -207,10 +225,16 @@ const trainerPortal = {
             const data = await response.json();
             // Transform API response to match UI expectations
             this.classes = (data || []).map(classItem => {
-                const scheduleDate = new Date(classItem.ScheduleDate || classItem.scheduleDate);
+                // Support both old and new field names
+                const scheduleDate = new Date(
+                    classItem.StartDateTime || 
+                    classItem.ScheduleDate || 
+                    classItem.startDateTime || 
+                    classItem.scheduleDate
+                );
                 return {
                     id: classItem.ClassID || classItem.classId,
-                    name: classItem.ClassName || classItem.className,
+                    name: classItem.Title || classItem.ClassName || classItem.title || classItem.className,
                     description: classItem.Description || classItem.description || '',
                     date: scheduleDate.toISOString().split('T')[0],
                     time: scheduleDate.toTimeString().slice(0, 5), // HH:MM format
@@ -287,8 +311,12 @@ const trainerPortal = {
             this.bookings = data || [];
 
             this.updateStats();
+            // Automatically render all bookings after loading
+            this.renderAllBookings();
         } catch (error) {
             console.error('Error loading bookings:', error);
+            // Still try to render (will show empty state)
+            this.renderAllBookings();
         }
     },
 
@@ -299,9 +327,13 @@ const trainerPortal = {
     async loadClassBookings(classId) {
         this.viewingBookingsForClassId = classId;
         
-        // Filter bookings for this class
-        const classBookings = this.bookings.filter(b => b.classId === classId);
+        // Filter bookings for this class - handle both API field names (ClassID) and frontend names (classId)
+        const classBookings = this.bookings.filter(b => {
+            const bookingClassId = b.ClassID || b.classId;
+            return bookingClassId == classId; // Use == for type coercion
+        });
         
+        // Render filtered bookings (for specific class view)
         this.renderBookings(classBookings);
     },
 
@@ -570,8 +602,10 @@ const trainerPortal = {
         `;
 
         classBookings.forEach(booking => {
-            const bookingDate = new Date(booking.bookingDateTime || booking.createdAt);
-            const formattedDate = bookingDate.toLocaleString('en-US', {
+            // Handle both API field names (BookingDate, Status) and frontend names (bookingDateTime, status)
+            const bookingDate = booking.BookingDate || booking.bookingDateTime || booking.createdAt;
+            const bookingDateObj = bookingDate ? new Date(bookingDate) : new Date();
+            const formattedDate = bookingDateObj.toLocaleString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',
@@ -579,16 +613,104 @@ const trainerPortal = {
                 minute: '2-digit'
             });
 
-            const statusBadge = booking.status === 'Booked' 
-                ? '<span class="badge badge-available">Booked</span>'
-                : booking.status === 'Cancelled'
+            const status = booking.Status || booking.status || 'Scheduled';
+            const statusBadge = status === 'Scheduled' || status === 'Booked'
+                ? '<span class="badge badge-available">' + status + '</span>'
+                : status === 'Cancelled'
                 ? '<span class="badge badge-full">Cancelled</span>'
-                : '<span class="badge">Completed</span>';
+                : '<span class="badge">' + status + '</span>';
 
+            // Handle both API field names (CustomerName, PetName) and frontend names (customerName, petName)
+            const customerName = booking.CustomerName || booking.customerName || 'Unknown';
+            const petName = booking.PetName || booking.petName || 'Unknown';
+            
             bookingsHTML += `
                 <tr>
-                    <td>${this.escapeHtml(booking.customerName || 'Unknown')}</td>
-                    <td>${this.escapeHtml(booking.petName || 'Unknown')}</td>
+                    <td>${this.escapeHtml(customerName)}</td>
+                    <td>${this.escapeHtml(petName)}</td>
+                    <td>${formattedDate}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        });
+
+        bookingsHTML += `
+                </tbody>
+            </table>
+        `;
+
+        bookingsList.innerHTML = bookingsHTML;
+    },
+
+    /**
+     * Render all bookings (not filtered by class)
+     */
+    renderAllBookings() {
+        const bookingsList = document.getElementById('bookingsList');
+        if (!bookingsList) return;
+        
+        bookingsList.classList.add('show');
+
+        if (this.bookings.length === 0) {
+            bookingsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">No bookings yet</div>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort bookings by date (most recent first)
+        const sortedBookings = [...this.bookings].sort((a, b) => {
+            const dateA = new Date(a.BookingDate || a.bookingDateTime || 0);
+            const dateB = new Date(b.BookingDate || b.bookingDateTime || 0);
+            return dateB - dateA;
+        });
+
+        let bookingsHTML = `
+            <table class="bookings-table">
+                <thead>
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Customer Name</th>
+                        <th>Pet Name</th>
+                        <th>Booking Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        sortedBookings.forEach(booking => {
+            // Handle both API field names (BookingDate, Status) and frontend names (bookingDateTime, status)
+            const bookingDate = booking.BookingDate || booking.bookingDateTime || booking.createdAt;
+            const bookingDateObj = bookingDate ? new Date(bookingDate) : new Date();
+            const formattedDate = bookingDateObj.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+
+            const status = booking.Status || booking.status || 'Scheduled';
+            const statusBadge = status === 'Scheduled' || status === 'Booked'
+                ? '<span class="badge badge-available">' + status + '</span>'
+                : status === 'Cancelled'
+                ? '<span class="badge badge-full">Cancelled</span>'
+                : '<span class="badge">' + status + '</span>';
+
+            // Handle both API field names (CustomerName, PetName, ClassTitle) and frontend names
+            const customerName = booking.CustomerName || booking.customerName || 'Unknown';
+            const petName = booking.PetName || booking.petName || 'Unknown';
+            const className = booking.Title || booking.ClassTitle || booking.ClassName || booking.className || 'Unknown Class';
+            
+            bookingsHTML += `
+                <tr>
+                    <td>${this.escapeHtml(className)}</td>
+                    <td>${this.escapeHtml(customerName)}</td>
+                    <td>${this.escapeHtml(petName)}</td>
                     <td>${formattedDate}</td>
                     <td>${statusBadge}</td>
                 </tr>
@@ -610,6 +732,8 @@ const trainerPortal = {
         const bookingsList = document.getElementById('bookingsList');
         bookingsList.classList.remove('show');
         this.viewingBookingsForClassId = null;
+        // Re-render all bookings when hiding specific class bookings
+        this.renderAllBookings();
     },
 
     // ============================================================================
@@ -619,18 +743,72 @@ const trainerPortal = {
      * Open modal for creating a new class
      */
     openCreateModal() {
+        console.log('openCreateModal called');
+        // Check if trainer is logged in
+        if (!this.trainerId) {
+            console.error('No trainerId - redirecting to login');
+            alert('You must be logged in as a trainer to create a class.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        const modal = document.getElementById('classModal');
+        if (!modal) {
+            console.error('Modal element not found!');
+            alert('Error: Modal element not found. Please refresh the page.');
+            return;
+        }
+        
         this.editingClassId = null;
-        document.getElementById('modalTitle').textContent = 'Create New Class';
-        document.getElementById('submitButton').textContent = 'Create Class';
-        document.getElementById('classForm').reset();
+        const modalTitle = document.getElementById('modalTitle');
+        const submitButton = document.getElementById('submitButton');
+        const classForm = document.getElementById('classForm');
+        const classDate = document.getElementById('classDate');
+        
+        if (modalTitle) modalTitle.textContent = 'Create New Class';
+        if (submitButton) submitButton.textContent = 'Create Class';
+        if (classForm) classForm.reset();
         this.clearAllErrors();
+        
+        // Clear any global error/success display
+        const errorDisplay = document.getElementById('globalErrorDisplay');
+        if (errorDisplay) {
+            errorDisplay.style.display = 'none';
+            errorDisplay.textContent = '';
+        }
+        const successDisplay = document.getElementById('globalSuccessDisplay');
+        if (successDisplay) {
+            successDisplay.style.display = 'none';
+            successDisplay.textContent = '';
+        }
         
         // Set minimum date to today
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('classDate').value = '';
-        document.getElementById('classDate').setAttribute('min', today);
+        if (classDate) {
+            classDate.value = '';
+            classDate.setAttribute('min', today);
+        }
         
-        document.getElementById('classModal').classList.add('show');
+        modal.classList.add('show');
+        console.log('Modal opened, classList:', modal.classList.toString());
+        
+        // Force visibility check
+        setTimeout(() => {
+            const computedStyle = window.getComputedStyle(modal);
+            const modalContent = modal.querySelector('.modal');
+            const contentStyle = modalContent ? window.getComputedStyle(modalContent) : null;
+            console.log('Modal overlay display:', computedStyle.display);
+            console.log('Modal overlay visibility:', computedStyle.visibility);
+            console.log('Modal overlay opacity:', computedStyle.opacity);
+            if (contentStyle) {
+                console.log('Modal content display:', contentStyle.display);
+                console.log('Modal content visibility:', contentStyle.visibility);
+                console.log('Modal content opacity:', contentStyle.opacity);
+                console.log('Modal content background:', contentStyle.backgroundColor);
+            } else {
+                console.error('Modal content element not found!');
+            }
+        }, 100);
     },
 
     /**
@@ -764,6 +942,9 @@ const trainerPortal = {
         if (errorElement) {
             errorElement.textContent = message;
             errorElement.classList.add('show');
+            console.log(`Field error [${errorId}]:`, message);
+        } else {
+            console.warn(`Error element not found: ${errorId}`);
         }
     },
 
@@ -790,11 +971,32 @@ const trainerPortal = {
      */
     async handleSubmit(event) {
         event.preventDefault();
+        event.stopPropagation();
+        console.log('Form submit handler called');
 
-        // Validate form
-        if (!this.validateForm()) {
+        // Clear previous messages
+        const errorDisplay = document.getElementById('globalErrorDisplay');
+        const successDisplay = document.getElementById('globalSuccessDisplay');
+        if (errorDisplay) errorDisplay.style.display = 'none';
+        if (successDisplay) successDisplay.style.display = 'none';
+
+        // Check if trainer is logged in
+        if (!this.trainerId) {
+            console.error('No trainerId found');
+            this.showError('You must be logged in as a trainer to create a class.');
             return;
         }
+
+        console.log('Validating form...');
+        // Validate form
+        if (!this.validateForm()) {
+            console.error('Form validation failed');
+            // Show a general error message if validation fails
+            this.showError('Please fill in all required fields correctly.');
+            return;
+        }
+        
+        console.log('Form validation passed');
 
         // Get form data
         const formData = {
@@ -815,20 +1017,28 @@ const trainerPortal = {
         submitButton.textContent = this.editingClassId ? 'Updating...' : 'Creating...';
 
         try {
+            console.log('Submitting form data:', formData);
             if (this.editingClassId) {
                 // Update existing class
+                console.log('Updating class:', this.editingClassId);
                 await this.updateClass(this.editingClassId, formData);
             } else {
                 // Create new class
+                console.log('Creating new class');
                 await this.createClass(formData);
             }
 
-            // Close modal and refresh
-            this.closeModal();
-            await this.loadClasses();
-            await this.loadBookings();
-            this.renderClasses();
-            this.updateStats();
+            console.log('Class saved successfully');
+            // Show success message
+            this.showSuccess('Class created successfully!');
+            // Close modal and refresh after a short delay
+            setTimeout(async () => {
+                this.closeModal();
+                await this.loadClasses();
+                await this.loadBookings();
+                this.renderClasses();
+                this.updateStats();
+            }, 1000);
         } catch (error) {
             console.error('Error saving class:', error);
             this.showError(error.message || 'Failed to save class. Please try again.');
@@ -878,8 +1088,21 @@ const trainerPortal = {
      */
     async createClass(classData) {
         try {
+            console.log('createClass called with:', classData);
             // Combine date and time into startDateTime
             const startDateTime = `${classData.date}T${classData.time}:00`;
+            console.log('Combined startDateTime:', startDateTime);
+            
+            const requestBody = {
+                trainerId: parseInt(this.trainerId),
+                title: classData.name, // Map name to title
+                description: classData.description || '',
+                type: classData.type || 'Group',
+                startDateTime: startDateTime,
+                capacity: parseInt(classData.capacity),
+                price: parseFloat(classData.price) || 0
+            };
+            console.log('API request body:', requestBody);
             
             // Call the API endpoint
             const response = await fetch('http://localhost:3000/api/classes', {
@@ -887,28 +1110,29 @@ const trainerPortal = {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    trainerId: this.trainerId,
-                    title: classData.name, // Map name to title
-                    description: classData.description || '',
-                    type: classData.type || 'Group',
-                    startDateTime: startDateTime,
-                    capacity: classData.capacity,
-                    price: classData.price || 0
-                })
+                body: JSON.stringify(requestBody)
             });
 
+            console.log('API response status:', response.status);
+            const responseData = await response.json();
+            console.log('API response data:', responseData);
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create class');
+                console.error('API error:', responseData);
+                throw new Error(responseData.message || 'Failed to create class');
             }
 
+            console.log('Class created successfully:', responseData);
             // Reload classes to get the full data from the database
             await this.loadClasses();
 
-            return await response.json();
+            return responseData;
         } catch (error) {
             console.error('Error creating class:', error);
+            // Provide more specific error message
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                throw new Error('Unable to connect to server. Make sure the server is running on http://localhost:3000');
+            }
             throw error;
         }
     },
@@ -976,15 +1200,18 @@ const trainerPortal = {
                 body: JSON.stringify(updateData)
             });
 
+            const responseData = await response.json();
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update class');
+                console.error('API error:', responseData);
+                throw new Error(responseData.message || 'Failed to update class');
             }
 
+            console.log('Class updated successfully:', responseData);
             // Reload classes to get updated data
             await this.loadClasses();
 
-            return await response.json();
+            return responseData;
         } catch (error) {
             console.error('Error updating class:', error);
             throw error;
@@ -1036,14 +1263,15 @@ const trainerPortal = {
         }
 
         try {
-            // Note: If your API doesn't have DELETE, you might need to use PATCH to mark as cancelled
-            // For now, we'll try DELETE - adjust if your API uses a different method
             const response = await fetch(`http://localhost:3000/api/classes/${classId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
+
+            const responseData = await response.json();
+            console.log('Delete response:', responseData);
 
             if (!response.ok) {
                 throw new Error('Failed to delete class');
@@ -1084,7 +1312,53 @@ const trainerPortal = {
      * @param {string} message - Error message
      */
     showError(message) {
-        alert(message); // Simple alert - can be replaced with a toast notification
+        console.error('showError called:', message);
+        // Try to show error in a visible place in the modal
+        const modal = document.getElementById('classModal');
+        if (modal && modal.classList.contains('show')) {
+            // Create or update error display in modal
+            let errorDisplay = document.getElementById('globalErrorDisplay');
+            if (!errorDisplay) {
+                errorDisplay = document.createElement('div');
+                errorDisplay.id = 'globalErrorDisplay';
+                errorDisplay.style.cssText = 'background: #fee; border: 1px solid #fcc; color: #c33; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: block;';
+                const form = document.getElementById('classForm');
+                if (form) {
+                    form.insertBefore(errorDisplay, form.firstChild);
+                }
+            }
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            // Scroll to error
+            errorDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            // Modal not open, show alert
+            alert(message);
+        }
+    },
+
+    /**
+     * Show success message
+     * @param {string} message - Success message
+     */
+    showSuccess(message) {
+        console.log('showSuccess called:', message);
+        const modal = document.getElementById('classModal');
+        if (modal && modal.classList.contains('show')) {
+            // Create or update success display in modal
+            let successDisplay = document.getElementById('globalSuccessDisplay');
+            if (!successDisplay) {
+                successDisplay = document.createElement('div');
+                successDisplay.id = 'globalSuccessDisplay';
+                successDisplay.style.cssText = 'background: #efe; border: 1px solid #cfc; color: #3c3; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: block;';
+                const form = document.getElementById('classForm');
+                if (form) {
+                    form.insertBefore(successDisplay, form.firstChild);
+                }
+            }
+            successDisplay.textContent = message;
+            successDisplay.style.display = 'block';
+        }
     },
 
     /**
@@ -1108,10 +1382,12 @@ document.addEventListener('DOMContentLoaded', () => {
     trainerPortal.init();
 });
 
-// Close modal when clicking outside
+// Close modal when clicking outside (but not on the modal content itself)
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('classModal');
-    if (e.target === modal) {
+    const modalContent = modal ? modal.querySelector('.modal') : null;
+    // Only close if clicking directly on the overlay, not on the modal content
+    if (modal && e.target === modal && !modalContent?.contains(e.target)) {
         trainerPortal.closeModal();
     }
 });

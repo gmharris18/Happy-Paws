@@ -44,8 +44,9 @@ export async function GET(request) {
         b.Status,
         b.BookingDate,
         c.ClassName AS ClassTitle,
+        c.ClassName AS Title,
         c.ClassName AS ClassName,
-        c.ScheduleDate,
+        c.ScheduleDate AS StartDateTime,
         c.Price,
         p.Name AS PetName,
         CONCAT(cu.FName, ' ', cu.LName) AS CustomerName

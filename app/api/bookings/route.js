@@ -44,12 +44,15 @@ export async function GET(request) {
         b.Status,
         b.BookingDate,
         c.ClassName AS ClassTitle,
+        c.ClassName AS ClassName,
         c.ScheduleDate,
         c.Price,
-        p.Name AS PetName
+        p.Name AS PetName,
+        CONCAT(cu.FName, ' ', cu.LName) AS CustomerName
       FROM Booking b
       JOIN Class c ON c.ClassID = b.ClassID
       JOIN Pet p ON p.PetID = b.PetID
+      JOIN Customer cu ON cu.CustomerID = b.CustomerID
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
       ORDER BY c.ScheduleDate DESC
       `,
@@ -130,7 +133,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { bookingId } = body;
+    const { bookingId, status, bookingDate } = body;
     if (!bookingId) {
       return NextResponse.json(
         { message: "bookingId is required" },
@@ -138,19 +141,36 @@ export async function PATCH(request) {
       );
     }
 
+    const updates = [];
+    const values = [];
+
+    if (status !== undefined) {
+      updates.push("Status = ?");
+      values.push(status);
+    }
+    if (bookingDate !== undefined) {
+      updates.push("BookingDate = ?");
+      values.push(bookingDate);
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json(
+        { message: "No fields to update" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    values.push(bookingId);
+
     await query(
-      `
-      UPDATE Booking
-      SET Status = 'Cancelled'
-      WHERE BookingID = ?
-      `,
-      [bookingId]
+      `UPDATE Booking SET ${updates.join(", ")} WHERE BookingID = ?`,
+      values
     );
-    return NextResponse.json({ message: "Booking cancelled" }, { headers: corsHeaders });
+    return NextResponse.json({ message: "Booking updated" }, { headers: corsHeaders });
   } catch (err) {
     console.error("Bookings PATCH error", err);
     return NextResponse.json(
-      { message: "Unable to cancel booking" },
+      { message: "Unable to update booking" },
       { status: 500, headers: corsHeaders }
     );
   }

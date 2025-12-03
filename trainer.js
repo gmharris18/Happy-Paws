@@ -596,6 +596,7 @@ const trainerPortal = {
                         <th>Pet Name</th>
                         <th>Booking Date</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -624,12 +625,18 @@ const trainerPortal = {
             const customerName = booking.CustomerName || booking.customerName || 'Unknown';
             const petName = booking.PetName || booking.petName || 'Unknown';
             
+            const bookingId = booking.BookingID || booking.bookingId;
             bookingsHTML += `
                 <tr>
                     <td>${this.escapeHtml(customerName)}</td>
                     <td>${this.escapeHtml(petName)}</td>
                     <td>${formattedDate}</td>
                     <td>${statusBadge}</td>
+                    <td>
+                        ${status === 'Scheduled' || status === 'Booked' ? 
+                            `<button onclick="trainerPortal.removeCustomerFromClass(${bookingId})" class="btn-danger" style="padding: 4px 8px; font-size: 12px;">Remove</button>` 
+                            : ''}
+                    </td>
                 </tr>
             `;
         });
@@ -677,6 +684,7 @@ const trainerPortal = {
                         <th>Pet Name</th>
                         <th>Booking Date</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -705,6 +713,7 @@ const trainerPortal = {
             const customerName = booking.CustomerName || booking.customerName || 'Unknown';
             const petName = booking.PetName || booking.petName || 'Unknown';
             const className = booking.Title || booking.ClassTitle || booking.ClassName || booking.className || 'Unknown Class';
+            const bookingId = booking.BookingID || booking.bookingId;
             
             bookingsHTML += `
                 <tr>
@@ -713,6 +722,11 @@ const trainerPortal = {
                     <td>${this.escapeHtml(petName)}</td>
                     <td>${formattedDate}</td>
                     <td>${statusBadge}</td>
+                    <td>
+                        ${status === 'Scheduled' || status === 'Booked' ? 
+                            `<button onclick="trainerPortal.removeCustomerFromClass(${bookingId})" class="btn-danger" style="padding: 4px 8px; font-size: 12px;">Remove</button>` 
+                            : ''}
+                    </td>
                 </tr>
             `;
         });
@@ -1289,6 +1303,46 @@ const trainerPortal = {
         } catch (error) {
             console.error('Error deleting class:', error);
             this.showError(error.message || 'Failed to delete class');
+        }
+    },
+
+    /**
+     * Remove a customer from a class (cancel their booking)
+     * @param {number} bookingId - ID of the booking to cancel
+     */
+    async removeCustomerFromClass(bookingId) {
+        if (!confirm('Are you sure you want to remove this customer from the class?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/bookings?bookingId=${bookingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const responseData = await response.json();
+            console.log('Remove customer response:', responseData);
+
+            if (!response.ok) {
+                throw new Error(responseData.message || 'Failed to remove customer from class');
+            }
+
+            // Show success message
+            this.showSuccess('Customer removed from class successfully');
+            
+            // Reload bookings to update the display
+            await this.loadBookings();
+            
+            // If viewing specific class bookings, reload those
+            if (this.viewingBookingsForClassId) {
+                await this.loadClassBookings(this.viewingBookingsForClassId);
+            }
+        } catch (error) {
+            console.error('Error removing customer from class:', error);
+            this.showError(error.message || 'Failed to remove customer from class');
         }
     },
 

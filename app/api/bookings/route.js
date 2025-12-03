@@ -92,7 +92,7 @@ export async function POST(request) {
       [classId]
     );
     if (!klass) {
-      return NextResponse.json({ message: "Class not found" }, { status: 404 });
+      return NextResponse.json({ message: "Class not found" }, { status: 404, headers: corsHeaders });
     }
     if (klass.BookedCount >= klass.Capacity) {
       return NextResponse.json(
@@ -172,6 +172,34 @@ export async function PATCH(request) {
     console.error("Bookings PATCH error", err);
     return NextResponse.json(
       { message: "Unable to update booking" },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const bookingId = searchParams.get("bookingId");
+    
+    if (!bookingId) {
+      return NextResponse.json(
+        { message: "bookingId is required" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Update status to Cancelled instead of deleting
+    await query(
+      "UPDATE Booking SET Status = 'Cancelled' WHERE BookingID = ?",
+      [bookingId]
+    );
+
+    return NextResponse.json({ message: "Booking cancelled" }, { headers: corsHeaders });
+  } catch (err) {
+    console.error("Bookings DELETE error", err);
+    return NextResponse.json(
+      { message: "Unable to cancel booking" },
       { status: 500, headers: corsHeaders }
     );
   }

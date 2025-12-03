@@ -3,6 +3,10 @@
 // ============================================================================
 const customerPortal = {
     customerId: null,
+    searchTerm: '',
+    currentFilter: 'all',
+    currentSort: 'date-asc',
+    displayedBookings: [],
     pets: [],
     availableClasses: [],
     bookings: [],
@@ -27,6 +31,9 @@ const customerPortal = {
         await this.loadPets();
         await this.loadClasses();
         await this.loadBookings();
+        
+        // Initialize filters
+        this.applyFiltersAndSort();
     },
 
     // Load customer data
@@ -119,9 +126,14 @@ const customerPortal = {
                         <div class="font-medium text-slate-900">${this.escapeHtml(pet.Name || 'Unnamed')}</div>
                         <div class="text-xs text-slate-500">${this.escapeHtml(pet.Species || 'Unknown')}${breedText ? ' • ' + this.escapeHtml(pet.Breed) : ''}</div>
                     </div>
-                    <span class="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                        Active
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="customerPortal.openEditPetModal(${pet.PetID})" class="text-xs text-sky-600 hover:text-sky-700 font-medium px-2 py-1 rounded hover:bg-sky-50">
+                            Edit
+                        </button>
+                        <button onclick="customerPortal.deletePet(${pet.PetID})" class="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50">
+                            Delete
+                        </button>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -387,12 +399,121 @@ const customerPortal = {
         `;
     },
 
+    // ============================================================================
+    // SEARCH, FILTER, AND SORT
+    // ============================================================================
+    
+    /**
+     * Handle search input
+     */
+    handleSearch() {
+        const searchInput = document.getElementById('customerSearchInput');
+        this.searchTerm = searchInput.value.toLowerCase().trim();
+        this.applyFiltersAndSort();
+        this.renderUpcomingClasses();
+    },
+
+    /**
+     * Handle filter change
+     */
+    handleFilter() {
+        const filterSelect = document.getElementById('customerDateFilter');
+        this.currentFilter = filterSelect.value;
+        this.applyFiltersAndSort();
+        this.renderUpcomingClasses();
+    },
+
+    /**
+     * Handle sort change
+     */
+    handleSort() {
+        const sortSelect = document.getElementById('customerSortSelect');
+        this.currentSort = sortSelect.value;
+        this.applyFiltersAndSort();
+        this.renderUpcomingClasses();
+    },
+
+    /**
+     * Apply search, filter, and sort to bookings
+     */
+    applyFiltersAndSort() {
+        let filtered = [...this.bookings];
+
+        // Apply search filter
+        if (this.searchTerm) {
+            filtered = filtered.filter(booking => {
+                const className = (booking.Title || booking.ClassTitle || '').toLowerCase();
+                const petName = (booking.PetName || '').toLowerCase();
+                return className.includes(this.searchTerm) || petName.includes(this.searchTerm);
+            });
+        }
+
+        // Apply date filter
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        filtered = filtered.filter(booking => {
+            if (!booking.StartDateTime) return false;
+            const classDate = new Date(booking.StartDateTime);
+            const classDateOnly = new Date(classDate.getFullYear(), classDate.getMonth(), classDate.getDate());
+            
+            switch (this.currentFilter) {
+                case 'today':
+                    return classDateOnly.toDateString() === today.toDateString();
+                case 'week':
+                    return classDate >= today && classDate <= weekFromNow;
+                case 'month':
+                    return classDate >= today && classDate <= monthFromNow;
+                case 'upcoming':
+                    return classDate >= today;
+                case 'past':
+                    return classDate < today;
+                default:
+                    return true;
+            }
+        });
+
+        // Apply sorting
+        filtered.sort((a, b) => {
+            const dateA = a.StartDateTime ? new Date(a.StartDateTime) : new Date(0);
+            const dateB = b.StartDateTime ? new Date(b.StartDateTime) : new Date(0);
+            const nameA = (a.Title || a.ClassTitle || '').toLowerCase();
+            const nameB = (b.Title || b.ClassTitle || '').toLowerCase();
+            
+            switch (this.currentSort) {
+                case 'newest':
+                    return dateB - dateA;
+                case 'oldest':
+                    return dateA - dateB;
+                case 'name-asc':
+                    return nameA.localeCompare(nameB);
+                case 'name-desc':
+                    return nameB.localeCompare(nameA);
+                case 'date-asc':
+                    return dateA - dateB;
+                case 'date-desc':
+                    return dateB - dateA;
+                default:
+                    return 0;
+            }
+        });
+
+        this.displayedBookings = filtered;
+    },
+
     // Render upcoming classes
     renderUpcomingClasses() {
         const upcomingListEl = document.getElementById('upcomingClassesList');
         const detailedListEl = document.getElementById('upcomingClassesDetailedList');
         
-        // Get upcoming bookings (future classes)
+        // Use displayedBookings if filters are applied, otherwise use all bookings
+        const bookingsToRender = this.displayedBookings.length > 0 || this.searchTerm || this.currentFilter !== 'all' 
+            ? this.displayedBookings 
+            : this.bookings;
+        
+        // Get upcoming bookings (future classes) for the small card - limit to 3
         const now = new Date();
         const upcomingBookings = this.bookings.filter(b => {
             if (!b.StartDateTime) return false;
@@ -435,9 +556,14 @@ const customerPortal = {
                                             ${this.escapeHtml(booking.PetName || 'Pet')}
                                         </p>
                                     </div>
-                                    <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 whitespace-nowrap">
-                                        ${booking.Status || 'Confirmed'}
-                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 whitespace-nowrap">
+                                            ${booking.Status || 'Confirmed'}
+                                        </span>
+                                        <button onclick="customerPortal.cancelBooking(${booking.BookingID})" class="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50">
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -448,16 +574,18 @@ const customerPortal = {
 
         // Render in the detailed list (upcomingClassesDetailedList)
         if (detailedListEl) {
-            if (upcomingBookings.length === 0) {
+            if (bookingsToRender.length === 0) {
                 detailedListEl.innerHTML = `
                     <div class="text-xs text-slate-500 text-center py-4">
-                        No upcoming classes. Book a class to get started!
+                        ${this.searchTerm || this.currentFilter !== 'all' 
+                            ? 'No bookings match your search criteria.' 
+                            : 'No bookings found. Book a class to get started!'}
                     </div>
                 `;
             } else {
                 const avatarColors = ['bg-sky-100 text-sky-600', 'bg-amber-100 text-amber-600', 'bg-purple-100 text-purple-600', 'bg-emerald-100 text-emerald-600'];
                 
-                detailedListEl.innerHTML = upcomingBookings.map((booking, index) => {
+                detailedListEl.innerHTML = bookingsToRender.map((booking, index) => {
                     const classDate = new Date(booking.StartDateTime);
                     const isToday = classDate.toDateString() === now.toDateString();
                     const isTomorrow = classDate.toDateString() === new Date(now.getTime() + 86400000).toDateString();
@@ -494,9 +622,14 @@ const customerPortal = {
                                             ${this.escapeHtml(booking.PetName || 'Pet')}
                                         </p>
                                     </div>
-                                    <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 whitespace-nowrap">
-                                        ${booking.Status || 'Confirmed'}
-                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 whitespace-nowrap">
+                                            ${booking.Status || 'Confirmed'}
+                                        </span>
+                                        <button onclick="customerPortal.cancelBooking(${booking.BookingID})" class="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50">
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -628,6 +761,7 @@ const customerPortal = {
             this.bookings = [];
         }
         // Always update UI after loading bookings
+        this.applyFiltersAndSort();
         this.updateStats();
         this.renderRecentActivity();
         this.renderUpcomingClasses();
@@ -926,6 +1060,220 @@ const customerPortal = {
         if (successEl) {
             successEl.textContent = message;
             successEl.style.display = 'block';
+        }
+    },
+
+    // Open edit pet modal
+    openEditPetModal(petId) {
+        if (!this.customerId) {
+            alert('Please log in as a customer first.');
+            return;
+        }
+
+        const pet = this.pets.find(p => p.PetID === petId);
+        if (!pet) {
+            alert('Pet not found');
+            return;
+        }
+
+        // Populate form
+        document.getElementById('editPetId').value = petId;
+        document.getElementById('editPetName').value = pet.Name || '';
+        document.getElementById('editPetSpecies').value = pet.Species || '';
+        document.getElementById('editPetBreed').value = pet.Breed || '';
+        
+        // Clear errors
+        this.clearEditPetErrors();
+        
+        // Show modal
+        document.getElementById('editPetModal').classList.add('show');
+    },
+
+    // Close edit pet modal
+    closeEditPetModal() {
+        document.getElementById('editPetModal').classList.remove('show');
+        document.getElementById('editPetForm').reset();
+        this.clearEditPetErrors();
+    },
+
+    // Clear edit pet errors
+    clearEditPetErrors() {
+        const errorEl = document.getElementById('editPetError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+        }
+        const successEl = document.getElementById('editPetSuccess');
+        if (successEl) {
+            successEl.textContent = '';
+            successEl.style.display = 'none';
+        }
+    },
+
+    // Handle edit pet form submission
+    async handleEditPetSubmit(event) {
+        event.preventDefault();
+        this.clearEditPetErrors();
+
+        const petId = document.getElementById('editPetId').value;
+        const name = document.getElementById('editPetName').value.trim();
+        const species = document.getElementById('editPetSpecies').value;
+        const breed = document.getElementById('editPetBreed').value.trim();
+
+        if (!name) {
+            this.showEditPetError('Please enter a pet name.');
+            return;
+        }
+
+        if (!species) {
+            this.showEditPetError('Please select a species.');
+            return;
+        }
+
+        const submitButton = document.getElementById('editPetSubmitBtn');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Updating...';
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/pets/${petId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    species: species,
+                    breed: breed || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to update pet');
+            }
+
+            // Success!
+            this.showEditPetSuccess('Pet updated successfully!');
+            
+            // Reload pets
+            await this.loadPets();
+            
+            // Close modal after 1.5 seconds
+            setTimeout(() => {
+                this.closeEditPetModal();
+            }, 1500);
+
+        } catch (error) {
+            console.error('Error updating pet:', error);
+            let errorMessage = 'Failed to update pet. Please try again.';
+            if (error.message) {
+                errorMessage = error.message;
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Unable to connect to server. Make sure the server is running on http://localhost:3000';
+            }
+            this.showEditPetError(errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Update Pet';
+        }
+    },
+
+    // Show edit pet error
+    showEditPetError(message) {
+        const errorEl = document.getElementById('editPetError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+    },
+
+    // Show edit pet success
+    showEditPetSuccess(message) {
+        const successEl = document.getElementById('editPetSuccess');
+        if (successEl) {
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+    },
+
+    // Delete pet
+    async deletePet(petId) {
+        if (!confirm('Are you sure you want to delete this pet? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/pets/${petId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to delete pet');
+            }
+
+            // Success!
+            alert('Pet deleted successfully!');
+            
+            // Reload pets
+            await this.loadPets();
+            // Reload bookings to update activity
+            await this.loadBookings();
+
+        } catch (error) {
+            console.error('Error deleting pet:', error);
+            let errorMessage = 'Failed to delete pet. Please try again.';
+            if (error.message) {
+                errorMessage = error.message;
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Unable to connect to server. Make sure the server is running on http://localhost:3000';
+            }
+            alert(errorMessage);
+        }
+    },
+
+    // Cancel booking
+    async cancelBooking(bookingId) {
+        if (!confirm('Are you sure you want to cancel this booking?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/bookings?bookingId=${bookingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to cancel booking');
+            }
+
+            // Success!
+            alert('Booking cancelled successfully!');
+            
+            // Reload bookings
+            await this.loadBookings();
+            // Reload classes to update availability
+            await this.loadClasses();
+
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+            let errorMessage = 'Failed to cancel booking. Please try again.';
+            if (error.message) {
+                errorMessage = error.message;
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Unable to connect to server. Make sure the server is running on http://localhost:3000';
+            }
+            alert(errorMessage);
         }
     }
 };

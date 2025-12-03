@@ -63,7 +63,7 @@ export async function POST(request) {
     if (rows.length === 0) {
       return NextResponse.json(
         { message: "Invalid email or password" },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
     // Try bcrypt compare first (for new accounts), fall back to plain text (for sample data)
